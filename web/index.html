@@ -13,7 +13,7 @@
     <header class="top-bar">
       <div class="title-block">
         <h1 data-i18n="h1_title">CardputerZero 画面测试与投屏控台</h1>
-        <p class="subtitle">1.9" IPS · 320×170 · 16-bit RGB565 · POST /push</p>
+        <p class="subtitle">1.9" IPS · 320×170 · RGB565 + Audio · /push · /stream · /play</p>
       </div>
       <div class="quick-actions" role="group" aria-label="即时屏幕操作" data-i18n-aria="quick_actions_aria">
         <span id="service-badge" class="badge">连接中...</span>
@@ -60,6 +60,7 @@
               alt="CardputerZero 当前 320×170 RGB565 屏幕实时画面预览"
               data-i18n-alt="preview_alt"
             >
+            <canvas id="cast-canvas" width="320" height="170" class="pixelated" hidden></canvas>
           </div>
         </section>
 
@@ -69,6 +70,44 @@
             <input type="file" id="image-file-input" accept="image/png,image/jpeg,image/bmp,image/webp,image/gif">
             <button type="button" id="btn-upload-push" class="btn primary small" data-i18n="btn_upload_push">推送上屏</button>
           </div>
+        </section>
+
+        <section id="media-zone" class="panel media-card" aria-labelledby="media-heading">
+          <div class="sub-header">
+            <h2 id="media-heading" data-i18n="media_heading">本地音视频文件投播（网页解码音画同传）</h2>
+            <span id="media-state-tag" class="hint" data-i18n="media_idle">选择 MP4/WebM/MP3/WAV 即可播放上屏</span>
+          </div>
+          <div class="upload-row media-file-row">
+            <label for="media-file-input" class="file-label" data-i18n="media_file_label">选择音视频</label>
+            <input type="file" id="media-file-input" accept="video/*,audio/*,.mp4,.webm,.mov,.mkv,.mp3,.wav,.ogg">
+            <button type="button" id="btn-media-toggle" class="btn primary small" disabled data-i18n="btn_media_play">▶ 播放投屏</button>
+            <button type="button" id="btn-media-stop" class="btn secondary small" disabled data-i18n="btn_media_stop">⏹ 停止</button>
+          </div>
+          <div class="media-seek-row">
+            <label for="media-seek" class="visually-hidden" data-i18n="lbl_media_seek">媒体播放进度</label>
+            <input
+              type="range"
+              id="media-seek"
+              min="0"
+              max="1000"
+              step="1"
+              value="0"
+              disabled
+              aria-valuetext="00:00 / 00:00"
+            >
+            <span id="media-time" class="media-time">00:00 / 00:00</span>
+          </div>
+          <div class="checkbox-row media-opts-row">
+            <label class="check-item" for="media-loop">
+              <input type="checkbox" id="media-loop">
+              <span data-i18n="lbl_media_loop">循环播放</span>
+            </label>
+            <label class="check-item" for="media-local-audio">
+              <input type="checkbox" id="media-local-audio">
+              <span data-i18n="lbl_local_audio">浏览器同时发声</span>
+            </label>
+          </div>
+          <video id="cast-video" preload="metadata" playsinline hidden></video>
         </section>
 
         <section class="panel pattern-card" aria-labelledby="pattern-heading">
@@ -137,6 +176,34 @@
                     <span role="img" aria-label="错误" data-i18n-aria="err_icon_aria">❌</span> <span data-i18n="err_target_fps">请输入 0–120 之间的整数（0 为不限速）。</span>
                   </div>
                 </div>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend data-i18n="legend_audio">设备音频输出控制（全局音量 / 静音）</legend>
+              <div class="audio-control-row">
+                <div class="field field-compact audio-vol-field">
+                  <div class="field-head">
+                    <label for="AUDIO_VOLUME" data-i18n="lbl_audio_vol">设备音量（0–150%）</label>
+                    <span id="AUDIO_VOLUME-hint" class="hint"><strong id="audio-vol-val">100</strong>%</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="AUDIO_VOLUME"
+                    name="AUDIO_VOLUME"
+                    min="0"
+                    max="150"
+                    step="1"
+                    value="100"
+                    aria-describedby="AUDIO_VOLUME-hint"
+                    aria-valuetext="100%"
+                  >
+                </div>
+                <label class="check-item" for="AUDIO_MUTE">
+                  <input type="checkbox" id="AUDIO_MUTE" name="AUDIO_MUTE">
+                  <span data-i18n="lbl_audio_mute">设备静音</span>
+                </label>
+                <span id="audio-backend-tag" class="hint">--</span>
               </div>
             </fieldset>
 
@@ -361,6 +428,17 @@
                 </div>
                 <div id="CAST_TOKEN-error" class="error-msg">
                   <span role="img" aria-label="错误" data-i18n-aria="err_icon_aria">❌</span> <span data-i18n="err_token">Token 不能包含控制字符。</span>
+                </div>
+              </div>
+
+              <div class="diag-log-row">
+                <div class="diag-check-wrap">
+                  <input type="checkbox" id="DIAG_LOG" name="DIAG_LOG">
+                  <label class="diag-check-label" for="DIAG_LOG" data-i18n="lbl_diag_log">开启内存盘按秒诊断日志（/tmp/cp0-screen-cast.log）</label>
+                </div>
+                <div class="diag-log-actions">
+                  <button type="button" id="btn-open-logs" class="btn secondary small" data-i18n="btn_open_logs">查看日志</button>
+                  <button type="button" id="btn-clear-logs" class="btn secondary small" data-i18n="btn_clear_logs">清空</button>
                 </div>
               </div>
             </fieldset>

@@ -2,16 +2,16 @@
   "app_name": "ScreenCast",
   "package_name": "cp0-screen-cast",
   "bin_name": "cp0-screen-cast",
-  "version": "0.1.0",
-  "description": "60fps wireless screen casting, mirroring & web console for CardputerZero",
+  "version": "0.2.0",
+  "description": "60fps wireless A/V streaming, screen mirroring & web console for CardputerZero",
   "store": {
-    "summary": "60fps wireless screen casting, mirroring & web console | 60帧无线投屏与网页控台",
-    "description": "Self-hosted web console (:8787) and high-speed LAN screen-casting receiver for CardputerZero (320x170 RGB565). View a live 16-bit screen mirror in any browser, drag-drop or Ctrl+V paste images, switch among 10 built-in UI/photo/calibration test patterns, tune color modes and Bayer dither live, and lock stream frame pacing (1-120 FPS or unlimited) for smooth video playback and 60 FPS game casting via HTTP POST /push. Supports En/Cn UI switch and keypad shortcuts (4-8, ESC).",
+    "summary": "60fps wireless A/V casting, mirroring & web console | 60帧音视频投屏与网页控台",
+    "description": "Self-hosted web console (:8787) and low-latency wireless audio/video & screen-casting receiver for CardputerZero (320x170 RGB565). Stream synchronized movies and audio via one-line ffmpeg MJPEG/AVI (/stream), PC hybrid delta streamer (CP0S), direct curl .mp4/.wav upload (/play), or local browser video/audio casting with 0-150% volume control. Also supports drag-drop/Ctrl+V image push, 10 built-in UI/photo/calibration test patterns, live Bayer dither & rotation tuning, /tmp RAM diagnostic logging, En/Cn UI switch, and keypad shortcuts (4-8, M/-/+ volume, ESC).",
     "locales": {
       "zh-CN": {
-        "title": "ScreenCast 无线投屏",
-        "summary": "自托管双栏网页控台、10类屏幕评估样张与60FPS局域网无线投屏接收端",
-        "description": "面向 CardputerZero（320×170 RGB565）的一体化双栏网页控台与高速局域网无线投屏接收应用。启动后浏览器访问设备 8787 端口即可查看实时屏幕镜像，支持拖拽或 Ctrl+V 粘贴截图直接上屏、一键切换 10 类内置 UI/照片/标定样张、实时调节色彩量化模式与 Bayer 防色带抖动，并提供 1–120 FPS 稳帧与不限速切换，可通过 HTTP POST /push 实现本地视频匀速播放与 60 FPS 游戏低延迟投屏。支持中英双语切换与机身 4–8、ESC 物理快捷键。"
+        "title": "ScreenCast 无线音视频投屏",
+        "summary": "自托管双栏网页控台、音视频同步串流、10类样张与60FPS无线投屏接收端",
+        "description": "面向 CardputerZero（320×170 RGB565）的一体化双栏网页控台与低延迟无线音视频投屏接收应用。支持一行 ffmpeg 轻量 MJPEG 音画合流（/stream）、PC 端 CP0S 自适应混合差分推流、curl 直传 .mp4/.wav 播放（/play）以及浏览器本地音视频文件直接投播，内置 0–150% 数字音量与静音控制。同时支持拖拽或 Ctrl+V 粘贴截图上屏、10 类内置 UI/照片/标定样张、色彩量化与 Bayer 防色带抖动实时调节、1–120 FPS 稳帧、/tmp 内存盘按秒性能诊断日志、中英双语切换及机身物理快捷键。"
       }
     },
     "categories": [

@@ -1,5 +1,5 @@
 ﻿<#
-程序说明：将打包好的 cp0-screen-cast_0.1.0_arm64.deb 通过 SSH 上传到 CardputerZero 并执行安装。
+程序说明：将打包好的 cp0-screen-cast_0.2.0_arm64.deb 通过 SSH 上传到 CardputerZero 并执行安装。
 用法示例：
   powershell -ExecutionPolicy Bypass -File .\deploy_to_device.ps1 -Target "cardputer"
 #>
@@ -12,7 +12,7 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 if (-not $DebPath) {
-    $DebPath = Join-Path $ScriptDir "dist\cp0-screen-cast_0.1.0_arm64.deb"
+    $DebPath = Join-Path $ScriptDir "dist\cp0-screen-cast_0.2.0_arm64.deb"
 }
 
 if (-not (Test-Path -LiteralPath $DebPath)) {

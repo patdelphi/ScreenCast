@@ -77,3 +77,23 @@ apps/screen-cast/
 3. 本地运行 `cp0_cast_app.py` 后，网页控台可正常打开，10 类样张切换、上传/粘贴任意分辨率图片、切换色彩/缩放/亮度参数均能实时更新 `320 × 170` RGB565 预览图，通过 `POST /push` 推送返回 `200` 且 `frame_bytes=108800`。
 4. `python "apps/screen-cast/build_deb.py"` 生成有效 `arm64.deb` 包，经 WSL `dpkg-deb -I` 与 `dpkg-deb -c` 校验包含可执行入口、`/usr/share/APPLaunch/applications/cp0-screen-cast.desktop` 与图标。
 5. 新增 Markdown 文档统一为单 UTF-8 BOM + CRLF 换行（`BareLF=0`）；向真机 SSH 部署安装前单独与用户确认。
+---
+
+## 6. v0.2.0 升级计划：音视频同步投屏（命令行合流 + 网页本地视频投播）
+
+### 6.1 升级范围
+- **单连接音画合流接口（`POST /stream`）**：原生支持 HTTP/1.1 `Transfer-Encoding: chunked` 长连接流式读取与 `RIFF/AVI`（`rawvideo` `rgb565le`/`bgr565le` + `pcm_s16le`）实时分拣，画面块（`00dc`/`00db`）直刷 `/dev/fb0`，音频块（`01wb`）送入声卡播放队列；一条 `ffmpeg` 命令即可音画同传，设备端无需安装解码库。
+- **低延迟音频输出引擎与独立音频接口（`POST /audio` + `POST /api/audio`）**：自动调用设备端 `pw-play` / `paplay` / `aplay` 低延迟管道播放 `S16_LE` PCM 音频，内置有界防堆积队列（积压超阈值自动丢弃旧音频帧防滞后）、静音开关与 `0–150%` 数字音量调节；无声卡桌面环境自动降级为内存计数后端。
+- **双栏网页控台新增“本地音视频投播”面板（`web/`）**：支持在手机/电脑浏览器直接选择或拖入本地 `.mp4/.webm/.mov/.mp3/.wav` 文件，由浏览器本地解码并通过 `<canvas>`（`RGB565`）+ `Web Audio API`（`PCM`）同步推送至设备屏幕与扬声器，提供播放/暂停、进度拖动、循环、设备静音与音量滑块，并在控台底部展示可直接复制的 `ffmpeg` 音视频合流命令。
+- **重新编译 `.deb` 安装包**：升级构建脚本与元数据至 `0.2.0`，生成 `dist/cp0-screen-cast_0.2.0_arm64.deb`。
+
+### 6.2 实施阶段
+- [x] **阶段 5（测试先行）**：在 `tests/test_screen_cast.py` 增加 HTTP `chunked` 流读取、AVI `rgb565le`/`bgr565le` + `pcm_s16le` 合流拆包、`POST /audio`、静音/音量缩放与队列防堆积回归测试。
+- [x] **阶段 6（服务端音视频引擎）**：在 `cp0_cast_app.py` 实现 `AudioOutputSink`、chunked 流解析器、`POST /stream`、`POST /audio`、`POST /play` 与 `POST /api/audio`，并确保未知路由返回 `404` 时立即关闭连接（`close_conn=True`）。
+- [x] **阶段 7（网页控台视频投播与重新打包）**：更新 `web/index.html`、`web/app.css`、`web/app.js` 增加音视频投播与音量控制卡片，更新 `build_deb.py` 生成新版 `.deb` 并完成全量校验。
+
+### 6.3 v0.2.0 完成标准
+1. `python -B -m unittest discover -s "apps/screen-cast/tests" -v` 全量通过。
+2. 本地用真实 `ffmpeg ... -f avi http://127.0.0.1:<port>/stream` 推送测试视频流，验证服务端实时解出 `108,800` 字节 RGB565 画面帧与 PCM 音频字节且帧数/采样计数增长正常。
+3. `node --check "apps/screen-cast/web/app.js"` 通过，网页控台选择本地视频可正常抽帧推屏与推音频。
+4. 重新生成 `dist/cp0-screen-cast_0.2.0_arm64.deb` 并通过包结构检查；经用户确认后部署或提供给设备安装验证。

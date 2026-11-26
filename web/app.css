@@ -277,7 +277,8 @@ body {
   justify-content: center;
 }
 
-#preview-img {
+#preview-img,
+#cast-canvas {
   display: block;
   inline-size: min(100%, calc(38dvh * 320 / 170));
   block-size: auto;
@@ -287,7 +288,13 @@ body {
   border-radius: 3px;
 }
 
-#preview-img.pixelated {
+#preview-img[hidden],
+#cast-canvas[hidden] {
+  display: none;
+}
+
+#preview-img.pixelated,
+#cast-canvas.pixelated {
   image-rendering: pixelated;
 }
 
@@ -327,6 +334,44 @@ body {
   flex: 1 1 0%;
   min-inline-size: 0;
   font-size: 0.74rem;
+}
+
+.media-card.drag-over {
+  border-color: var(--brand);
+  background: var(--bg-subtle);
+}
+
+.media-seek-row {
+  display: flex;
+  align-items: safe center;
+  gap: 0.5rem;
+  margin-block-start: 0.34rem;
+}
+
+.media-seek-row input[type="range"] {
+  flex: 1 1 0%;
+}
+
+.media-time {
+  font-size: 0.73rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.media-opts-row {
+  margin-block-start: 0.2rem;
+}
+
+.audio-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem 0.75rem;
+}
+
+.audio-vol-field {
+  flex: 1 1 200px;
 }
 
 /* 10 类样张矩阵分组样式 */
@@ -630,6 +675,48 @@ input[type="text"]:is(:user-valid, .user-valid-fallback) {
   align-items: safe center;
   gap: 0.2rem 0.65rem;
   margin-block-start: 0.28rem;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--brand);
+  inline-size: 1.15em;
+  aspect-ratio: 1;
+  margin: 0;
+  cursor: pointer;
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.diag-log-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: safe center;
+  justify-content: space-between;
+  gap: 0.3rem 0.6rem;
+  margin-block-start: 0.32rem;
+}
+
+.diag-check-wrap {
+  display: inline-flex;
+  align-items: safe center;
+  gap: 0.35rem;
+}
+
+.diag-check-label {
+  display: inline-block;
+  font-size: 0.77rem;
+  padding-block: 11px;
+  margin-block: -11px;
+  cursor: pointer;
+}
+
+.diag-log-actions {
+  display: inline-flex;
+  align-items: safe center;
+  gap: 0.3rem;
 }
 
 .btn {

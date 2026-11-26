@@ -67,14 +67,14 @@ ScreenCast/
 No cross-compiler or Linux packaging toolchain is required on your PC. Build the `arm64` Debian package directly with Python from the project root:
 
 ```powershell
-# 1. Generate icons and .deb package (outputs to dist/cp0-screen-cast_0.1.0_arm64.deb)
+# 1. Generate icons and .deb package (outputs to dist/cp0-screen-cast_0.2.0_arm64.deb)
 python "build_deb.py"
 
 # 2. Upload and install over SSH (replace "cardputer" with your SSH alias or pi@<device-ip>)
 powershell -ExecutionPolicy Bypass -File "deploy_to_device.ps1" -Target "cardputer"
 ```
 
-You can also upload manually via `scp` and run `sudo dpkg -i /tmp/cp0-screen-cast_0.1.0_arm64.deb` on the device. Installation registers `/usr/share/APPLaunch/applications/cp0-screen-cast.desktop`, which `APPLaunch` picks up automatically via `inotify` without rebooting.
+You can also upload manually via `scp` and run `sudo dpkg -i /tmp/cp0-screen-cast_0.2.0_arm64.deb` on the device. Installation registers `/usr/share/APPLaunch/applications/cp0-screen-cast.desktop`, which `APPLaunch` picks up automatically via `inotify` without rebooting.
 
 ### 3.2 Launching from `APPLaunch` & Physical Keypad Controls
 
@@ -117,6 +117,7 @@ Open `http://<device-ip>:8787` to access the 50/50 dual-column Web Console:
 - **Left Column**:
   - **Live Screen Mirror**: Reconstructed from exact `RGB565` framebuffer bytes, with a `Pixel Sharp / Smooth` view toggle.
   - **Quick Image Push**: Select a file, drag-and-drop onto the dashed zone, or press **`Ctrl+V` anywhere on the page** to paste a clipboard screenshot directly to the device screen.
+  - **Local Video & Audio Cast**: Pick or drag-drop any `.mp4 / .webm / .mov / .mp3 / .wav` file in your PC or mobile browser to decode locally and stream synchronized `320×170 RGB565` frames + `24kHz PCM` audio to the device speaker/headphones, complete with play/pause, seek bar, loop, and local audio monitor controls.
   - **10 Built-in Test Patterns**: Launcher UI, SysMon dashboard, SSH terminal logs, SDR spectrum & waterfall, AI chat reader, sunset landscape photo, 3D shaded neon spheres, SMPTE color bars & gray steps, R/G/B/Gray gradient banding chart, and 1px bezel frame + `10–18px` font chart.
   - **Hardware & Stream Telemetry**: Current mode, received/blitted frame counts, live FPS & active FPS cap, framebuffer backend, endpoint IP, Wi-Fi strength, battery status, CPU temperature, and RAM usage.
 - **Right Column**: Every tuning control previews live on the device within `120 ms` in memory (avoiding SD card wear) and writes to disk (`~/.config/cp0-screen-cast/cp0-screen-cast.conf` on device) when clicking **`Save Settings to .env`**.
@@ -135,6 +136,9 @@ Open `http://<device-ip>:8787` to access the 50/50 dual-column Web Console:
 | `THRESHOLD` | `128` | Binary cutoff (`0–255`) for `mono_threshold` mode |
 | `INVERT` | `false` | Invert image colors (`true` / `false`) |
 | `SHOW_OVERLAY` | `false` | Overlay compact status tag at top-right of device screen (`true` / `false`) |
+| `AUDIO_VOLUME` | `100` | Digital audio output volume percentage (`0–150`) |
+| `AUDIO_MUTE` | `false` | Mute device audio output (`true` / `false`) |
+| `DIAG_LOG` | `false` | Per-second RAM-disk diagnostic logger at `/tmp/cp0-screen-cast.log` (`256KB × 2` auto-rotation, zero SD card wear) |
 | `LISTEN_HOST` | `0.0.0.0` | HTTP server bind address |
 | `LISTEN_PORT` | `8787` | HTTP server port (`1–65535`) |
 | `CAST_TOKEN` | empty | Optional auth token; when non-empty, write endpoints require header `X-Cast-Token: <token>` |
@@ -254,9 +258,34 @@ For minimal device CPU usage and maximum frame rates, clients can send pre-packe
 - **Little-Endian Bit Packing**: Given 8-bit `R, G, B` (`0..255`), the 16-bit value is `v = ((R & 0xF8) << 8) | ((G & 0xFC) << 3) | (B >> 3)`, stored as `[v & 0xFF, (v >> 8) & 0xFF]`.
 - **Lossless Deflate Compression (Recommended)**: Compress the `108,800`-byte buffer with `zlib.compress(raw_bytes, level=1)` and send headers `Content-Type: application/octet-stream` + `Content-Encoding: deflate`. UI frames shrink by ~90% while decompressing and blitting in ~`2 ms` on the Cortex-A53.
 
-### 5.4 Level 4: Streaming Local Video Files (`ffmpeg` + Console `TARGET_FPS`)
+### 5.4 Level 4: Synchronized Audio + Video Streaming (One-Line `ffmpeg` / `curl`)
 
-Use `ffmpeg` to scale, crop, and output native `rgb565le` frames directly to `stdout`, streaming over a persistent Keep-Alive connection. Set **`24 FPS`** or **`30 FPS`** in the Web Console (and/or `-re` in `ffmpeg`) for smooth video playback:
+`v0.2.0` supports **synchronized audio + video streaming** out of the box via three CLI workflows:
+
+```bash
+# Option A1 (Recommended One-Liner): PC scales & encodes compact MJPEG (-c:v mjpeg -q:v 7) — ~260 KB/s @ 24fps (90% less Wi-Fi traffic!)
+ffmpeg -re -i "movie.mp4" \
+  -vf "fps=24,scale=320:170:force_original_aspect_ratio=decrease,pad=320:170:(ow-iw)/2:(oh-ih)/2" \
+  -c:v mjpeg -q:v 7 \
+  -ar 24000 -ac 1 -c:a pcm_s16le \
+  -flush_packets 1 -avioflags direct \
+  -f avi "http://192.168.31.251:8787/stream"
+
+# Option A2 (PC Hybrid CP0S Streamer): Zero-JPEG XOR delta on calm/dialogue frames + compact JPEG on scene cuts
+python "pc_av_streamer.py" "movie.mp4" --host "192.168.31.251" --port 8787 --fps 24
+
+# Option A3 (Uncompressed rawvideo AVI): Supports rgb565le or ?pix_fmt=bgr565le
+ffmpeg -re -i "movie.mp4" -vf "fps=24,scale=320:170" -c:v rawvideo -pix_fmt rgb565le -ar 24000 -ac 1 -c:a pcm_s16le -f avi "http://192.168.31.251:8787/stream"
+
+# Option B: Direct curl upload of a .wav or .mp4 file for on-device playback (.wav native; .mp4 uses device ffmpeg)
+curl -X POST "http://192.168.31.251:8787/play" --data-binary "@clip.mp4"
+curl -X POST "http://192.168.31.251:8787/play" --data-binary "@alert.wav"
+
+# Option C: Stream raw 16-bit PCM audio directly to the device speaker/headphones
+ffmpeg -re -i "music.mp3" -ar 24000 -ac 1 -f s16le "http://192.168.31.251:8787/audio?rate=24000&channels=1"
+```
+
+For custom Python scripts pushing deflate-compressed video frames over `/push`:
 
 ```python
 #!/usr/bin/env python3
@@ -445,6 +474,11 @@ When `CAST_TOKEN` is non-empty in `.env`, all `POST` endpoints (except `/api/con
 | --- | --- | --- |
 | `GET /` | Dual-column Web Console HTML | Open in browser |
 | `POST /push` | Push image or raw frame to screen | Raw encoded image bytes, `multipart/form-data` (`image` or `file` field), or `108,800`-byte little-endian `RGB565`; optional header `Content-Encoding: deflate`; optional query `?color_mode=...&fit_mode=...&rotate=...` |
+| `POST /stream` | Single-connection live A/V stream | Accepts `ffmpeg -f avi` (recommended `-c:v mjpeg -q:v 7` or `rawvideo` `rgb565le` + `pcm_s16le`) and `CP0S` hybrid delta streams (`pc_av_streamer.py`); optional `?pix_fmt=bgr565le` |
+| `POST /play` | Direct `curl` `.wav` / `.mp4` playback | Binary media body; `16-bit WAV` plays natively, `.mp4/.mkv/.mp3` decodes via on-device `ffmpeg` |
+| `POST /audio` | Low-latency raw `S16_LE` PCM audio stream | Query `?rate=24000&channels=1` (`8000–96000 Hz`, mono or stereo) |
+| `GET / POST /api/audio` | Query or update device volume & mute | JSON: `{"volume": 0..150, "muted": false, "clear": false, "save": false}` |
+| `GET / POST /api/logs` | Read, toggle, or clear `/tmp` diagnostic log | `GET /api/logs?tail=120&format=text` returns plain text; `POST` accepts `{"action": "clear"}` or `{"enabled": true}` |
 | `GET /api/patterns` | List all 10 built-in test patterns | Optional query `?lang=zh` or `?lang=en` |
 | `POST /api/test-pattern` | Display a built-in test pattern | JSON: `{"pattern": "ui_dashboard"}` or `"next"` / `"prev"` |
 | `GET /api/config` | Read active runtime configuration | Returns `{"ok": true, "config": {...}}` |

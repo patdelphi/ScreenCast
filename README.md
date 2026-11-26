@@ -67,14 +67,14 @@ ScreenCast/
 在项目根目录下无需安装交叉编译链或 Linux 打包工具，直接用 Python 生成标准 `arm64` Debian 包：
 
 ```powershell
-# 1. 生成图标与安装包（输出至 dist/cp0-screen-cast_0.1.0_arm64.deb）
+# 1. 生成图标与安装包（输出至 dist/cp0-screen-cast_0.2.0_arm64.deb）
 python "build_deb.py"
 
 # 2. 通过 SSH 上传并安装到设备（假设 SSH 别名或主机为 cardputer / pi@192.168.31.251）
 powershell -ExecutionPolicy Bypass -File "deploy_to_device.ps1" -Target "cardputer"
 ```
 
-也可以手动通过 `scp` 上传后在设备上执行 `sudo dpkg -i /tmp/cp0-screen-cast_0.1.0_arm64.deb`。安装包会自动将应用注册到 `/usr/share/APPLaunch/applications/cp0-screen-cast.desktop`，`APPLaunch` 桌面通过 `inotify` 实时识别，无需重启机器。
+也可以手动通过 `scp` 上传后在设备上执行 `sudo dpkg -i /tmp/cp0-screen-cast_0.2.0_arm64.deb`。安装包会自动将应用注册到 `/usr/share/APPLaunch/applications/cp0-screen-cast.desktop`，`APPLaunch` 桌面通过 `inotify` 实时识别，无需重启机器。
 
 ### 3.2 设备端启动与物理按键操作
 
@@ -117,6 +117,7 @@ python "cp0_cast_app.py" --host 127.0.0.1 --port 8787
 - **左栏**：
   - **设备屏幕实时预览**：按设备真实 `RGB565` 显存字节还原画面，支持切换“像素锐利 / 平滑缩放”。
   - **快速推图区**：支持点击选择图片、拖拽图片文件到虚线框，或在页面任意位置直接按 **`Ctrl+V` 粘贴截图**即刻推送上屏。
+  - **本地音视频文件投播区**：支持直接点选或拖入 `.mp4 / .webm / .mov / .mp3 / .wav` 文件，由手机或电脑浏览器本地解码，自动抽帧转 `RGB565` 推屏并提取 `24kHz PCM` 音频同步发往设备扬声器/耳机播放，带播放/暂停、进度条拖动、循环与本机监听开关。
   - **10 类内置评估样张库**：涵盖启动器列表、系统监控看板、SSH 终端日志、SDR 频谱瀑布图、AI 对话气泡阅读、日落山湖照片、3D 霓虹高光球体、8 色灰阶标定卡、四通道色带对比卡、1px 边框与字号对照卡。
   - **硬件与推流遥测**：显示当前模式、收图/刷屏帧数、实时 FPS 与限帧状态、显存节点、IP、Wi-Fi 信号、电池电量、CPU 温度与内存占用。
 - **右栏**：所有画质、旋转、缩放及帧率参数改动后在 `120 ms` 内自动预览上屏（内存生效，避免频繁擦写 SD 卡），点击 **`保存当前参数到 .env`** 后持久化写入配置文件（设备端默认位于 `~/.config/cp0-screen-cast/cp0-screen-cast.conf`）。
@@ -132,9 +133,12 @@ python "cp0_cast_app.py" --host 127.0.0.1 --port 8787
 | `BRIGHTNESS` | `100` | 亮度百分比（`20–200`） |
 | `CONTRAST` | `100` | 对比度百分比（`20–200`） |
 | `SATURATION` | `100` | 饱和度百分比（`0–200`） |
+| `DIAG_LOG` | `false` | 开启后每秒将收发速率、解码耗时、丢帧、声卡与硬件状态汇总写入内存盘 `/tmp/cp0-screen-cast.log`（`256KB × 2` 自动轮转，零 SD 卡磨损） |
 | `THRESHOLD` | `128` | `mono_threshold` 模式的黑白切分阈值（`0–255`） |
 | `INVERT` | `false` | 是否反相画面颜色（`true` / `false`） |
 | `SHOW_OVERLAY` | `false` | 是否在设备屏幕右上角叠加紧凑状态角标（`true` / `false`） |
+| `AUDIO_VOLUME` | `100` | 设备音频输出数字音量百分比（`0–150`） |
+| `AUDIO_MUTE` | `false` | 是否静音设备音频输出（`true` / `false`） |
 | `LISTEN_HOST` | `0.0.0.0` | HTTP 服务绑定地址 |
 | `LISTEN_PORT` | `8787` | HTTP 服务监听端口（`1–65535`） |
 | `CAST_TOKEN` | 空 | 可选推送口令；非空时写操作接口须带请求头 `X-Cast-Token: <口令>` |
@@ -254,9 +258,34 @@ if __name__ == "__main__":
 - **小端字节序布局**：设 8-bit 通道为 `R, G, B`（`0..255`），16-bit 值为 `v = ((R & 0xF8) << 8) | ((G & 0xFC) << 3) | (B >> 3)`；内存中第 0 字节存低 8 位 `v & 0xFF`，第 1 字节存高 8 位 `(v >> 8) & 0xFF`。
 - **开启无损压缩（推荐）**：对 `108,800` 字节执行 `zlib.compress(raw_bytes, level=1)`，同时携带请求头 `Content-Type: application/octet-stream` 与 `Content-Encoding: deflate`。实测可将 UI 画面体积缩小 90% 以上，设备端解压加刷屏仅需约 `2 ms`。
 
-### 5.4 场景四：本地视频文件流式播放（`ffmpeg` + 控台稳帧）
+### 5.4 场景四：音视频同步流式播放（一行 `ffmpeg` 合流 / `curl` 直传原片）
 
-借助 `ffmpeg` 将任意视频文件实时缩放裁切为 `320 × 170` 原生小端 `rgb565le` 原始流，配合网页控台设置固定帧率（如点击控台 **`24 FPS`** 或 **`30 FPS`**，也可以在 `ffmpeg` 端加 `-re` 按源视频帧率读取），即可在 CardputerZero 屏幕上流畅播放视频：
+`v0.2.0` 原生支持**音画同步投屏**，提供三种最省事的视频与音频命令行方式：
+
+```bash
+# 方式 A1（最推荐的一行命令）：PC 端缩放并编码轻量 MJPEG (-c:v mjpeg -q:v 7)，24fps 仅约 260 KB/s，比裸流省 90% Wi-Fi 带宽！
+ffmpeg -re -i "movie.mp4" \
+  -vf "fps=24,scale=320:170:force_original_aspect_ratio=decrease,pad=320:170:(ow-iw)/2:(oh-ih)/2" \
+  -c:v mjpeg -q:v 7 \
+  -ar 24000 -ac 1 -c:a pcm_s16le \
+  -flush_packets 1 -avioflags direct \
+  -f avi "http://192.168.31.251:8787/stream"
+
+# 方式 A2（PC 端极致减负混合协议 CP0S）：静止/对话帧自动走零 JPEG 负担的时域降噪 XOR 差分，切镜头帧自动走小体积 JPEG
+python "pc_av_streamer.py" "movie.mp4" --host "192.168.31.251" --port 8787 --fps 24
+
+# 方式 A3（无损原始帧 AVI 合流，适合高速近距 Wi-Fi）：支持 rgb565le 或附加 ?pix_fmt=bgr565le
+ffmpeg -re -i "movie.mp4" -vf "fps=24,scale=320:170" -c:v rawvideo -pix_fmt rgb565le -ar 24000 -ac 1 -c:a pcm_s16le -f avi "http://192.168.31.251:8787/stream"
+
+# 方式 B：直接用 curl 上传整个 .wav 或 .mp4 媒体文件由设备端播放（.wav 原生直播；.mp4 需设备已装 ffmpeg）
+curl -X POST "http://192.168.31.251:8787/play" --data-binary "@clip.mp4"
+curl -X POST "http://192.168.31.251:8787/play" --data-binary "@alert.wav"
+
+# 方式 C：单独向设备扬声器/耳机推送实时音频流
+ffmpeg -re -i "music.mp3" -ar 24000 -ac 1 -f s16le "http://192.168.31.251:8787/audio?rate=24000&channels=1"
+```
+
+如需在自定义 Python 脚本中对纯画面帧做 `deflate` 压缩推送，也可参考下方脚本：
 
 ```python
 #!/usr/bin/env python3
@@ -448,6 +477,11 @@ if __name__ == "__main__":
 | --- | --- | --- |
 | `GET /` | 双栏网页控台主页 | 浏览器直接打开 |
 | `POST /push` | 推送图像或原始帧上屏 | 支持二进制图片、`multipart/form-data`（字段 `image` 或 `file`）、`108,800` 字节原始小端 `RGB565`；可选请求头 `Content-Encoding: deflate`；可选查询参数 `?color_mode=...&fit_mode=...&rotate=...` |
+| `POST /stream` | 单连接音视频合流实时投屏 | 接收 `ffmpeg -f avi`（推荐 `-c:v mjpeg -q:v 7` 或 `rawvideo` `rgb565le` + `pcm_s16le`）以及 `pc_av_streamer.py` 的 `CP0S` 混合差分流；可选 `?pix_fmt=bgr565le` |
+| `POST /play` | `curl` 直推 `.wav` / `.mp4` 原文件播放 | 二进制媒体文件体；`16-bit WAV` 原生直播，`.mp4/.mkv/.mp3` 调用设备 `ffmpeg` 音画同解 |
+| `POST /audio` | 推送低延迟 `S16_LE` 原始 PCM 音频流 | 查询参数 `?rate=24000&channels=1`（支持 `8000–96000 Hz`，单/双声道） |
+| `GET / POST /api/audio` | 查询或调整设备音量与静音状态 | JSON：`{"volume": 0..150, "muted": false, "clear": false, "save": false}` |
+| `GET / POST /api/logs` | 读取、开关或清空 `/tmp` 诊断日志 | `GET /api/logs?tail=120&format=text` 直接输出纯文本日志；`POST` 传 `{"action": "clear"}` 或 `{"enabled": true}` |
 | `GET /api/patterns` | 获取 10 类内置样张列表 | 可选查询参数 `?lang=zh` 或 `?lang=en` |
 | `POST /api/test-pattern` | 切换屏幕显示的内置样张 | JSON：`{"pattern": "ui_dashboard"}` 或 `"next"` / `"prev"` |
 | `GET /api/config` | 读取当前生效的全部配置 | 返回 `{"ok": true, "config": {...}}` |

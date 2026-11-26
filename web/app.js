@@ -31,6 +31,22 @@
       drop_zone_aria: '上传、拖拽或剪贴板粘贴图片上屏',
       file_label: '选图 / 拖拽 / Ctrl+V 贴图',
       btn_upload_push: '推送上屏',
+      media_heading: '本地音视频文件投播（网页解码音画同传）',
+      media_idle: '选择 MP4/WebM/MP3/WAV 即可播放上屏',
+      media_file_label: '选择音视频',
+      btn_media_play: '▶ 播放投屏',
+      btn_media_pause: '⏸ 暂停投播',
+      btn_media_stop: '⏹ 停止',
+      lbl_media_seek: '媒体播放进度',
+      lbl_media_loop: '循环播放',
+      lbl_local_audio: '浏览器同时发声',
+      media_playing: (name) => `投播中：${name}`,
+      media_paused: (name) => `已暂停：${name}`,
+      media_ready: (name) => `已就绪：${name}`,
+      legend_audio: '设备音频输出控制（全局音量 / 静音）',
+      lbl_audio_vol: '设备音量（0–150%）',
+      lbl_audio_mute: '设备静音',
+      audio_tag_fmt: (bk, kb) => `输出: ${bk} (${kb} KB)`,
       pattern_heading: '内置屏幕评估样张库（点击即刻上屏）',
       pattern_hint_default: '选择下方样张检验 UI 排版、色彩与字号',
       cat_app_ui: 'App UI 模拟',
@@ -99,11 +115,18 @@
       err_icon_aria: '错误',
       btn_show: '显示',
       btn_hide: '隐藏',
+      lbl_diag_log: '开启内存盘按秒诊断日志（/tmp/cp0-screen-cast.log）',
+      btn_open_logs: '查看日志',
+      btn_clear_logs: '清空',
+      msg_logs_empty: '当前暂无诊断日志（勾选开启后推流即按秒记录）。',
+      msg_logs_cleared: '已清空 /tmp 内存盘诊断日志。',
       btn_save_config: '保存当前参数到 .env',
-      api_heading: '任意设备推送命令示例（HTTP POST）',
+      api_heading: '任意设备推送命令示例（图片 / 视频 / 音频）',
       btn_copy_curl: '复制示例',
-      curl_comment_1: '# 1. 推送任意 PNG/JPEG 图片到设备屏幕',
-      curl_comment_2: '# 2. 表单上传或指定缩放/抖动模式',
+      curl_comment_1: '# 1. curl 推送单张 PNG/JPEG 图片上屏 (/push)',
+      curl_comment_2: '# 2. ffmpeg 音视频合流实时投屏 (/stream，电脑解码零负担)',
+      curl_comment_3: '# 3. curl 直接投送本地 .mp4 或 .wav 文件 (/play)',
+      curl_comment_4: '# 4. 单独推送 16-bit PCM 音频流 (/audio)',
       msg_parse_err: '响应解析失败',
       msg_req_err: '请求失败',
       msg_pat_ok: (id, ms) => `已切换屏幕样张：${id}（耗时 ${ms} ms）`,
@@ -120,6 +143,8 @@
       msg_copy_err: '复制受限，请手动选择复制。',
       msg_init_err: (m) => `初始化失败：${m}`,
       msg_lang_switched: '已切换为中文界面（设备端同步刷新）。',
+      msg_media_err: (m) => `音视频加载或播放失败：${m}`,
+      msg_media_stopped: '已停止本地音视频投播。',
     },
     en: {
       doc_title: 'CardputerZero Display & Cast Console',
@@ -148,6 +173,22 @@
       drop_zone_aria: 'Upload, drag-drop, or paste image to screen',
       file_label: 'Select / Drop / Ctrl+V Paste',
       btn_upload_push: 'Push Image',
+      media_heading: 'Local Video & Audio Cast (Browser A/V Sync)',
+      media_idle: 'Pick MP4/WebM/MP3/WAV to cast video & sound',
+      media_file_label: 'Pick Media',
+      btn_media_play: '▶ Play & Cast',
+      btn_media_pause: '⏸ Pause Cast',
+      btn_media_stop: '⏹ Stop',
+      lbl_media_seek: 'Playback position',
+      lbl_media_loop: 'Loop',
+      lbl_local_audio: 'Play in Browser Too',
+      media_playing: (name) => `Casting: ${name}`,
+      media_paused: (name) => `Paused: ${name}`,
+      media_ready: (name) => `Ready: ${name}`,
+      legend_audio: 'Device Audio Output (Volume & Mute)',
+      lbl_audio_vol: 'Device Volume (0–150%)',
+      lbl_audio_mute: 'Mute Device',
+      audio_tag_fmt: (bk, kb) => `Out: ${bk} (${kb} KB)`,
       pattern_heading: 'Built-in Test Patterns (Click to Cast)',
       pattern_hint_default: 'Pick a sample below to inspect UI layout, color & fonts',
       cat_app_ui: 'App UI',
@@ -216,11 +257,18 @@
       err_icon_aria: 'Error',
       btn_show: 'Show',
       btn_hide: 'Hide',
+      lbl_diag_log: 'Per-second RAM diagnostic log (/tmp/cp0-screen-cast.log)',
+      btn_open_logs: 'View Log',
+      btn_clear_logs: 'Clear',
+      msg_logs_empty: 'Diagnostic log is currently empty (enable the toggle to record).',
+      msg_logs_cleared: 'Cleared /tmp diagnostic log.',
       btn_save_config: 'Save Settings to .env',
-      api_heading: 'Cross-Device Push Examples (HTTP POST)',
+      api_heading: 'Cross-Device Push Examples (Image / Video / Audio)',
       btn_copy_curl: 'Copy',
-      curl_comment_1: '# 1. Push any PNG/JPEG image to the device screen',
-      curl_comment_2: '# 2. Multipart upload with fit & dither overrides',
+      curl_comment_1: '# 1. curl push a single PNG/JPEG image (/push)',
+      curl_comment_2: '# 2. ffmpeg live audio+video stream (/stream, decoded on PC)',
+      curl_comment_3: '# 3. curl direct .mp4 or .wav file upload (/play)',
+      curl_comment_4: '# 4. Stream raw 16-bit PCM audio (/audio)',
       msg_parse_err: 'Failed to parse response',
       msg_req_err: 'Request failed',
       msg_pat_ok: (id, ms) => `Pattern switched: ${id} (${ms} ms)`,
@@ -237,6 +285,8 @@
       msg_copy_err: 'Clipboard unavailable; select and copy manually.',
       msg_init_err: (m) => `Initialization failed: ${m}`,
       msg_lang_switched: 'Switched to English UI (synced with device).',
+      msg_media_err: (m) => `Media playback failed: ${m}`,
+      msg_media_stopped: 'Stopped local media casting.',
     },
   };
 
@@ -256,6 +306,23 @@
   const tokenInput = document.getElementById('CAST_TOKEN');
   const targetFpsInput = document.getElementById('TARGET_FPS');
   const fpsChips = [...document.querySelectorAll('.fps-chip')];
+  const audioVolSlider = document.getElementById('AUDIO_VOLUME');
+  const audioVolLabel = document.getElementById('audio-vol-val');
+  const audioMuteCheck = document.getElementById('AUDIO_MUTE');
+  const audioBackendTag = document.getElementById('audio-backend-tag');
+
+  const mediaZone = document.getElementById('media-zone');
+  const mediaFileInput = document.getElementById('media-file-input');
+  const mediaToggleBtn = document.getElementById('btn-media-toggle');
+  const mediaStopBtn = document.getElementById('btn-media-stop');
+  const mediaSeek = document.getElementById('media-seek');
+  const mediaTimeEl = document.getElementById('media-time');
+  const mediaStateTag = document.getElementById('media-state-tag');
+  const mediaLoopCheck = document.getElementById('media-loop');
+  const mediaLocalAudioCheck = document.getElementById('media-local-audio');
+  const castVideo = document.getElementById('cast-video');
+  const castCanvas = document.getElementById('cast-canvas');
+  const castCtx = castCanvas.getContext('2d', { willReadFrequently: true });
 
   const sliders = {
     BRIGHTNESS: document.getElementById('BRIGHTNESS'),
@@ -279,6 +346,7 @@
   let healthInFlight = false;
   let liveApplyTimer = null;
   let lastPreviewKey = '';
+  let lastPreviewFetchAt = 0;
 
   const t = (key) => I18N[currentLang]?.[key] ?? I18N.zh[key] ?? key;
 
@@ -540,12 +608,18 @@
 
   const updateCurlExample = (ip, port) => {
     const targetOrigin = ip && ip !== '127.0.0.1' ? `http://${ip}:${port}` : window.location.origin;
-    const tokFlag = tokenInput.value.trim() ? ` -H "X-Cast-Token: ${tokenInput.value.trim()}"` : '';
+    const tok = tokenInput.value.trim();
+    const tokFlag = tok ? ` -H "X-Cast-Token: ${tok}"` : '';
+    const ffHdr = tok ? ` -headers "X-Cast-Token: ${tok}\\r\\n"` : '';
     curlBox.textContent =
       `${t('curl_comment_1')}\n` +
       `curl -X POST "${targetOrigin}/push"${tokFlag} -H "Content-Type: image/png" --data-binary @screen.png\n` +
       `${t('curl_comment_2')}\n` +
-      `curl -X POST "${targetOrigin}/push?fit_mode=cover&color_mode=rgb565_dither"${tokFlag} -F "image=@photo.jpg"`;
+      `ffmpeg -re -i movie.mp4 -vf "fps=24,scale=320:170:force_original_aspect_ratio=decrease,pad=320:170:(ow-iw)/2:(oh-ih)/2" -c:v mjpeg -q:v 7 -ar 24000 -ac 1 -c:a pcm_s16le -flush_packets 1 -avioflags direct -f avi${ffHdr} "${targetOrigin}/stream"\n` +
+      `${t('curl_comment_3')}\n` +
+      `curl -X POST "${targetOrigin}/play"${tokFlag} --data-binary @clip.mp4\n` +
+      `${t('curl_comment_4')}\n` +
+      `ffmpeg -re -i music.mp3 -ar 24000 -ac 1 -f s16le${ffHdr} "${targetOrigin}/audio?rate=24000&channels=1"`;
   };
 
   const renderHealthView = (h) => {
@@ -596,6 +670,20 @@
     const memStr = dev.mem_total_mb ? `${dev.mem_used_mb}/${dev.mem_total_mb}M` : '--';
     document.getElementById('dev-sys').textContent = `${tempStr} / ${memStr}`;
 
+    if (h.audio) {
+      const playedKb = Math.round((h.audio.played_bytes || 0) / 1024);
+      audioBackendTag.textContent = t('audio_tag_fmt')(h.audio.backend || 'memory', playedKb);
+      if (document.activeElement !== audioVolSlider && h.audio.volume !== undefined) {
+        audioVolSlider.value = String(h.audio.volume);
+        audioVolLabel.textContent = String(h.audio.volume);
+        audioVolSlider.setAttribute('aria-valuetext', `${h.audio.volume}%`);
+        updateSliderFallbackProgress(audioVolSlider);
+      }
+      if (document.activeElement !== audioMuteCheck && h.audio.muted !== undefined) {
+        audioMuteCheck.checked = Boolean(h.audio.muted);
+      }
+    }
+
     updateCurlExample(lastDeviceInfo.ip, lastDeviceInfo.port);
 
     const errEl = document.getElementById('last-error-text');
@@ -632,6 +720,7 @@
     const showingTok = tokenInput.type === 'text';
     toggleTokenBtn.textContent = showingTok ? t('btn_hide') : t('btn_show');
     togglePauseBtn.textContent = currentPaused ? t('btn_resume') : t('btn_pause');
+    syncMediaStatusText();
 
     if (patternCatalog.length) {
       renderPatternButtons(patternCatalog);
@@ -671,6 +760,16 @@
     document.getElementById('BG_COLOR').value = cfg.BG_COLOR ?? '#000000';
     document.getElementById('INVERT').checked = Boolean(cfg.INVERT);
     document.getElementById('SHOW_OVERLAY').checked = Boolean(cfg.SHOW_OVERLAY);
+    document.getElementById('DIAG_LOG').checked = Boolean(cfg.DIAG_LOG);
+    if (cfg.AUDIO_VOLUME !== undefined) {
+      audioVolSlider.value = String(cfg.AUDIO_VOLUME);
+      audioVolLabel.textContent = String(cfg.AUDIO_VOLUME);
+      audioVolSlider.setAttribute('aria-valuetext', `${cfg.AUDIO_VOLUME}%`);
+      updateSliderFallbackProgress(audioVolSlider);
+    }
+    if (cfg.AUDIO_MUTE !== undefined) {
+      audioMuteCheck.checked = Boolean(cfg.AUDIO_MUTE);
+    }
 
     for (const key of Object.keys(sliders)) {
       if (cfg[key] !== undefined) {
@@ -708,6 +807,9 @@
       THRESHOLD: Number(sliders.THRESHOLD.value),
       INVERT: document.getElementById('INVERT').checked,
       SHOW_OVERLAY: document.getElementById('SHOW_OVERLAY').checked,
+      DIAG_LOG: document.getElementById('DIAG_LOG').checked,
+      AUDIO_VOLUME: Number(audioVolSlider.value || 100),
+      AUDIO_MUTE: audioMuteCheck.checked,
     };
   };
 
@@ -726,8 +828,19 @@
 
       const key = `${h.frame_seq ?? 0}:${h.frame_sha256 || ''}`;
       if (key !== lastPreviewKey) {
-        lastPreviewKey = key;
-        refreshPreviewImage(key);
+        const localVideoLive = mediaCastingActive && !castVideo.paused && !castVideo.ended && castVideo.videoWidth > 0;
+        if (localVideoLive) {
+          /* 网页本地视频投播期间直接展示同源 #cast-canvas，零反向拉取 /preview.png，释放设备 CPU 与 Wi-Fi 带宽 */
+          lastPreviewKey = key;
+        } else {
+          const nowMs = Date.now();
+          const minGap = Number(h.fps || 0) >= 4 ? 2000 : 0;
+          if (!minGap || nowMs - lastPreviewFetchAt >= minGap) {
+            lastPreviewKey = key;
+            lastPreviewFetchAt = nowMs;
+            refreshPreviewImage(key);
+          }
+        }
       }
     } catch {
       serviceBadge.textContent = t('badge_offline');
@@ -739,6 +852,7 @@
   };
 
   const triggerPattern = async (patternId) => {
+    stopMediaCast(false);
     try {
       const prevKey = lastPreviewKey;
       const res = await fetchJson('/api/test-pattern', {
@@ -776,11 +890,333 @@
     }
   };
 
+  const isMediaFile = (file) => {
+    if (!file) return false;
+    const tp = (file.type || '').toLowerCase();
+    if (tp.startsWith('video/') || tp.startsWith('audio/')) return true;
+    return /\.(mp4|webm|mov|mkv|avi|mp3|wav|ogg|m4a|flac)$/i.test(file.name || '');
+  };
+
+  /* -----------------------------------------------------------------------
+   * 网页本地音视频解码与同步推流引擎（<video> + <canvas> RGB565 + Web Audio PCM）
+   * ----------------------------------------------------------------------- */
+  let mediaObjectUrl = '';
+  let currentMediaName = '';
+  let mediaCastingActive = false;
+  let mediaFrameTimer = null;
+  let videoInFlightCount = 0;
+  let videoEncodeBusy = false;
+  let clientFrameSeq = 0;
+  let streamSessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  let audioPushInFlight = 0;
+  let audioCtx = null;
+  let monitorGainNode = null;
+  let pcmBatchChunks = [];
+  let pcmBatchSamples = 0;
+  let audioApplyTimer = null;
+  const TARGET_AUDIO_RATE = 24000;
+  const MAX_VIDEO_INFLIGHT = 3;
+
+  const fmtMediaSec = (sec) => {
+    if (!Number.isFinite(sec) || sec < 0) return '00:00';
+    const total = Math.floor(sec);
+    const m = String(Math.floor(total / 60)).padStart(2, '0');
+    const s = String(total % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const syncLocalCanvasVisibility = () => {
+    const showLocal = mediaCastingActive && !castVideo.paused && !castVideo.ended && castVideo.videoWidth > 0;
+    castCanvas.hidden = !showLocal;
+    previewImg.hidden = showLocal;
+  };
+
+  const syncMediaStatusText = () => {
+    syncLocalCanvasVisibility();
+    const playing = mediaCastingActive && !castVideo.paused && !castVideo.ended;
+    mediaToggleBtn.textContent = playing ? t('btn_media_pause') : t('btn_media_play');
+    if (!currentMediaName) {
+      mediaStateTag.textContent = t('media_idle');
+    } else if (playing) {
+      mediaStateTag.textContent = t('media_playing')(currentMediaName);
+    } else if (castVideo.currentTime > 0 && !castVideo.ended) {
+      mediaStateTag.textContent = t('media_paused')(currentMediaName);
+    } else {
+      mediaStateTag.textContent = t('media_ready')(currentMediaName);
+    }
+  };
+
+  const updateMediaSeekUi = () => {
+    const dur = Number.isFinite(castVideo.duration) && castVideo.duration > 0 ? castVideo.duration : 0;
+    const cur = Math.min(dur || 0, castVideo.currentTime || 0);
+    const ratio = dur > 0 ? Math.round((cur / dur) * 1000) : 0;
+    mediaSeek.value = String(ratio);
+    updateSliderFallbackProgress(mediaSeek);
+    const timeLabel = `${fmtMediaSec(cur)} / ${fmtMediaSec(dur)}`;
+    mediaTimeEl.textContent = timeLabel;
+    mediaSeek.setAttribute('aria-valuetext', timeLabel);
+  };
+
+  const flushPcmBatch = () => {
+    if (!pcmBatchSamples) return;
+    const merged = new Int16Array(pcmBatchSamples);
+    let offset = 0;
+    for (const part of pcmBatchChunks) {
+      merged.set(part, offset);
+      offset += part.length;
+    }
+    pcmBatchChunks = [];
+    pcmBatchSamples = 0;
+    if (audioPushInFlight >= 2) return;
+    audioPushInFlight += 1;
+    fetch(`/audio?rate=${TARGET_AUDIO_RATE}&channels=1`, {
+      method: 'POST',
+      headers: getHeadersWithToken({ 'Content-Type': 'application/octet-stream' }),
+      body: new Uint8Array(merged.buffer),
+    })
+      .catch(() => {})
+      .finally(() => {
+        audioPushInFlight = Math.max(0, audioPushInFlight - 1);
+      });
+  };
+
+  const ensureWebAudioGraph = () => {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!audioCtx) {
+      audioCtx = new Ctx();
+      const srcNode = audioCtx.createMediaElementSource(castVideo);
+      const scriptNode = audioCtx.createScriptProcessor(4096, 2, 1);
+      const silentGain = audioCtx.createGain();
+      silentGain.gain.value = 0;
+      monitorGainNode = audioCtx.createGain();
+      monitorGainNode.gain.value = mediaLocalAudioCheck.checked ? 1 : 0;
+
+      srcNode.connect(scriptNode);
+      scriptNode.connect(silentGain);
+      silentGain.connect(audioCtx.destination);
+      srcNode.connect(monitorGainNode);
+      monitorGainNode.connect(audioCtx.destination);
+
+      scriptNode.onaudioprocess = (ev) => {
+        if (!mediaCastingActive || castVideo.paused || castVideo.ended) return;
+        const inBuf = ev.inputBuffer;
+        const chCount = inBuf.numberOfChannels;
+        if (!chCount) return;
+        const ch0 = inBuf.getChannelData(0);
+        const ch1 = chCount > 1 ? inBuf.getChannelData(1) : null;
+        const inRate = audioCtx.sampleRate || 48000;
+        const step = inRate / TARGET_AUDIO_RATE;
+        const outLen = Math.max(1, Math.floor(ch0.length / step));
+        const pcm = new Int16Array(outLen);
+        for (let i = 0; i < outLen; i += 1) {
+          const idx = Math.min(ch0.length - 1, Math.floor(i * step));
+          const mono = ch1 ? (ch0[idx] + ch1[idx]) * 0.5 : ch0[idx];
+          const clamped = Math.max(-1, Math.min(1, mono));
+          pcm[i] = clamped < 0 ? Math.round(clamped * 32768) : Math.round(clamped * 32767);
+        }
+        pcmBatchChunks.push(pcm);
+        pcmBatchSamples += pcm.length;
+        if (pcmBatchSamples >= 1920) {
+          flushPcmBatch();
+        }
+      };
+    }
+    if (audioCtx.state === 'suspended') {
+      void audioCtx.resume();
+    }
+  };
+
+  const buildCanvasGpuFilter = () => {
+    const parts = [];
+    const br = Number(sliders.BRIGHTNESS.value || 100);
+    const ct = Number(sliders.CONTRAST.value || 100);
+    const sat = Number(sliders.SATURATION.value || 100);
+    const cmRadio = form.querySelector('input[name="COLOR_MODE"]:checked');
+    const cm = cmRadio ? cmRadio.value : 'rgb565';
+    if (br !== 100) parts.push(`brightness(${br}%)`);
+    if (ct !== 100) parts.push(`contrast(${ct}%)`);
+    if (cm === 'gray') {
+      parts.push('grayscale(100%)');
+    } else if (sat !== 100) {
+      parts.push(`saturate(${sat}%)`);
+    }
+    if (document.getElementById('INVERT').checked) {
+      parts.push('invert(100%)');
+    }
+    return parts.length ? parts.join(' ') : 'none';
+  };
+
+  const encodeCanvasJpegBlob = () =>
+    new Promise((resolve) => {
+      castCanvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.76);
+    });
+
+  const captureAndPushVideoFrame = async () => {
+    if (
+      !mediaCastingActive ||
+      castVideo.paused ||
+      castVideo.ended ||
+      videoEncodeBusy ||
+      videoInFlightCount >= MAX_VIDEO_INFLIGHT
+    ) {
+      return;
+    }
+    const vw = castVideo.videoWidth;
+    const vh = castVideo.videoHeight;
+    if (!vw || !vh) return;
+    syncLocalCanvasVisibility();
+
+    const fitRadio = form.querySelector('input[name="FIT_MODE"]:checked');
+    const fitMode = fitRadio ? fitRadio.value : 'contain';
+    const rotRadio = form.querySelector('input[name="ROTATE"]:checked');
+    const rotDeg = rotRadio ? Number(rotRadio.value) || 0 : 0;
+    const isQuarterTurn = rotDeg === 90 || rotDeg === 270;
+    const effW = isQuarterTurn ? vh : vw;
+    const effH = isQuarterTurn ? vw : vh;
+
+    /* 在 PC/手机浏览器 GPU 端一次性完成留边填充、旋转、缩放与亮度/对比度/饱和度/灰度/反相滤镜 */
+    castCtx.filter = 'none';
+    castCtx.fillStyle = document.getElementById('BG_COLOR').value || '#000000';
+    castCtx.fillRect(0, 0, 320, 170);
+
+    let boxW = 320;
+    let boxH = 170;
+    if (fitMode === 'cover') {
+      const scale = Math.max(320 / effW, 170 / effH);
+      boxW = effW * scale;
+      boxH = effH * scale;
+    } else if (fitMode !== 'stretch') {
+      const scale = Math.min(320 / effW, 170 / effH);
+      boxW = effW * scale;
+      boxH = effH * scale;
+    }
+
+    const drawW = isQuarterTurn ? boxH : boxW;
+    const drawH = isQuarterTurn ? boxW : boxH;
+    castCtx.save();
+    castCtx.filter = buildCanvasGpuFilter();
+    castCtx.translate(160, 85);
+    if (rotDeg) {
+      castCtx.rotate((rotDeg * Math.PI) / 180);
+    }
+    castCtx.drawImage(castVideo, -drawW * 0.5, -drawH * 0.5, drawW, drawH);
+    castCtx.restore();
+
+    videoEncodeBusy = true;
+    const jpegBlob = await encodeCanvasJpegBlob();
+    videoEncodeBusy = false;
+    if (!jpegBlob || !mediaCastingActive) return;
+
+    clientFrameSeq += 1;
+    const seq = clientFrameSeq;
+    videoInFlightCount += 1;
+    fetch('/push?pre_processed=1&fast=1', {
+      method: 'POST',
+      headers: getHeadersWithToken({
+        'Content-Type': 'image/jpeg',
+        'X-Stream-Session': streamSessionId,
+        'X-Frame-Seq': String(seq),
+      }),
+      body: jpegBlob,
+    })
+      .catch(() => {})
+      .finally(() => {
+        videoInFlightCount = Math.max(0, videoInFlightCount - 1);
+      });
+  };
+
+  const restartMediaFrameLoop = () => {
+    clearInterval(mediaFrameTimer);
+    mediaFrameTimer = null;
+    if (!mediaCastingActive) return;
+    if (castVideo.readyState >= 1 && !castVideo.videoWidth) return;
+    const cap = Number(targetFpsInput.value) || 0;
+    const fps = cap > 0 ? Math.min(60, Math.max(5, cap)) : 24;
+    mediaFrameTimer = setInterval(() => {
+      void captureAndPushVideoFrame();
+    }, Math.round(1000 / fps));
+  };
+
+  const clearRemoteAudioBuffer = () => {
+    pcmBatchChunks = [];
+    pcmBatchSamples = 0;
+    fetch('/api/audio', {
+      method: 'POST',
+      headers: getHeadersWithToken({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ clear: true }),
+    }).catch(() => {});
+  };
+
+  const startMediaCast = async () => {
+    if (!currentMediaName) return;
+    try {
+      ensureWebAudioGraph();
+      mediaCastingActive = true;
+      castVideo.loop = mediaLoopCheck.checked;
+      await castVideo.play();
+      restartMediaFrameLoop();
+      syncMediaStatusText();
+    } catch (err) {
+      mediaCastingActive = false;
+      syncMediaStatusText();
+      showStatus(t('msg_media_err')(err.message), true);
+    }
+  };
+
+  const pauseMediaCast = () => {
+    castVideo.pause();
+    clearInterval(mediaFrameTimer);
+    mediaFrameTimer = null;
+    clearRemoteAudioBuffer();
+    syncMediaStatusText();
+  };
+
+  const stopMediaCast = (notify = false) => {
+    mediaCastingActive = false;
+    castVideo.pause();
+    try {
+      castVideo.currentTime = 0;
+    } catch {
+      /* 未就绪时忽略 */
+    }
+    clearInterval(mediaFrameTimer);
+    mediaFrameTimer = null;
+    clearRemoteAudioBuffer();
+    updateMediaSeekUi();
+    syncMediaStatusText();
+    if (notify) showStatus(t('msg_media_stopped'));
+  };
+
+  const loadLocalMedia = async (file, autoPlay = true) => {
+    if (!file) return;
+    stopMediaCast(false);
+    streamSessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    clientFrameSeq = 0;
+    if (mediaObjectUrl) URL.revokeObjectURL(mediaObjectUrl);
+    mediaObjectUrl = URL.createObjectURL(file);
+    currentMediaName = file.name || 'media';
+    castVideo.src = mediaObjectUrl;
+    castVideo.loop = mediaLoopCheck.checked;
+    mediaToggleBtn.disabled = false;
+    mediaStopBtn.disabled = false;
+    mediaSeek.disabled = false;
+    syncMediaStatusText();
+    if (autoPlay) {
+      await startMediaCast();
+    }
+  };
+
   const uploadFile = async (file) => {
     if (!file) {
       showStatus(t('msg_pick_img'), true);
       return;
     }
+    if (isMediaFile(file)) {
+      await loadLocalMedia(file, true);
+      return;
+    }
+    stopMediaCast(false);
     try {
       const fd = new FormData();
       fd.append('image', file);
@@ -856,14 +1292,40 @@
   }
 
   form.querySelectorAll('input[type="radio"], input[type="checkbox"], input[type="color"]').forEach((el) => {
+    if (el === audioMuteCheck) return;
     el.addEventListener('change', scheduleLivePreviewApply);
   });
+
+  const scheduleAudioSettingsApply = () => {
+    clearTimeout(audioApplyTimer);
+    audioApplyTimer = setTimeout(() => {
+      fetchJson('/api/audio', {
+        method: 'POST',
+        headers: getHeadersWithToken({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          volume: Number(audioVolSlider.value || 100),
+          muted: audioMuteCheck.checked,
+          save: false,
+        }),
+      }).catch(() => {});
+    }, 80);
+  };
+
+  audioVolSlider.addEventListener('input', () => {
+    audioVolLabel.textContent = audioVolSlider.value;
+    audioVolSlider.setAttribute('aria-valuetext', `${audioVolSlider.value}%`);
+    updateSliderFallbackProgress(audioVolSlider);
+    scheduleAudioSettingsApply();
+  });
+
+  audioMuteCheck.addEventListener('change', scheduleAudioSettingsApply);
 
   fpsChips.forEach((chip) => {
     chip.addEventListener('click', () => {
       targetFpsInput.value = chip.dataset.fps;
       syncFpsChipsHighlight(chip.dataset.fps);
       syncFieldAria(targetFpsInput, false);
+      restartMediaFrameLoop();
       scheduleLivePreviewApply();
     });
   });
@@ -872,6 +1334,7 @@
     syncFpsChipsHighlight(targetFpsInput.value);
     applyCustomConstraint(targetFpsInput);
     if (targetFpsInput.validity.valid) {
+      restartMediaFrameLoop();
       scheduleLivePreviewApply();
     }
   });
@@ -893,6 +1356,7 @@
   pixelModeBtn.addEventListener('click', () => {
     const nowPixel = !previewImg.classList.contains('pixelated');
     previewImg.classList.toggle('pixelated', nowPixel);
+    castCanvas.classList.toggle('pixelated', nowPixel);
     pixelModeBtn.setAttribute('aria-pressed', nowPixel ? 'true' : 'false');
     pixelModeBtn.textContent = nowPixel ? t('pixel_sharp') : t('pixel_smooth');
   });
@@ -902,6 +1366,36 @@
     tokenInput.type = showing ? 'password' : 'text';
     toggleTokenBtn.setAttribute('aria-pressed', showing ? 'false' : 'true');
     toggleTokenBtn.textContent = showing ? t('btn_show') : t('btn_hide');
+  });
+
+  document.getElementById('btn-open-logs').addEventListener('click', async () => {
+    try {
+      const snap = await fetchJson('/api/logs?tail=250', { headers: getHeadersWithToken() });
+      const lines = snap.lines || [];
+      if (!lines.length) {
+        showStatus(t('msg_logs_empty'));
+        return;
+      }
+      const txt = `# path=${snap.path} enabled=${snap.enabled} size=${snap.size_bytes}B\n` + lines.join('\n') + '\n';
+      const url = URL.createObjectURL(new Blob([txt], { type: 'text/plain;charset=utf-8' }));
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (err) {
+      showStatus(err.message, true);
+    }
+  });
+
+  document.getElementById('btn-clear-logs').addEventListener('click', async () => {
+    try {
+      await fetchJson('/api/logs', {
+        method: 'POST',
+        headers: getHeadersWithToken({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ action: 'clear' }),
+      });
+      showStatus(t('msg_logs_cleared'));
+    } catch (err) {
+      showStatus(err.message, true);
+    }
   });
 
   toggleLangBtn.addEventListener('click', async () => {
@@ -918,11 +1412,65 @@
   document.getElementById('btn-toggle-pause').addEventListener('click', () =>
     runControl(currentPaused ? 'resume' : 'pause')
   );
-  document.getElementById('btn-waiting').addEventListener('click', () => runControl('waiting'));
+  document.getElementById('btn-waiting').addEventListener('click', () => {
+    stopMediaCast(false);
+    void runControl('waiting');
+  });
   document.getElementById('btn-refresh-status').addEventListener('click', refreshHealth);
   document.getElementById('btn-upload-push').addEventListener('click', () => uploadFile(fileInput.files?.[0]));
   fileInput.addEventListener('change', () => {
     if (fileInput.files?.[0]) void uploadFile(fileInput.files[0]);
+  });
+
+  mediaFileInput.addEventListener('change', () => {
+    if (mediaFileInput.files?.[0]) void loadLocalMedia(mediaFileInput.files[0], true);
+  });
+  mediaToggleBtn.addEventListener('click', () => {
+    if (!currentMediaName) return;
+    if (mediaCastingActive && !castVideo.paused && !castVideo.ended) {
+      pauseMediaCast();
+    } else {
+      void startMediaCast();
+    }
+  });
+  mediaStopBtn.addEventListener('click', () => stopMediaCast(true));
+  mediaLoopCheck.addEventListener('change', () => {
+    castVideo.loop = mediaLoopCheck.checked;
+  });
+  mediaLocalAudioCheck.addEventListener('change', () => {
+    if (monitorGainNode && audioCtx) {
+      monitorGainNode.gain.value = mediaLocalAudioCheck.checked ? 1 : 0;
+    }
+  });
+  mediaSeek.addEventListener('input', () => {
+    const dur = Number.isFinite(castVideo.duration) && castVideo.duration > 0 ? castVideo.duration : 0;
+    if (dur > 0) {
+      const targetSec = (Number(mediaSeek.value) / 1000) * dur;
+      castVideo.currentTime = targetSec;
+      clearRemoteAudioBuffer();
+      updateMediaSeekUi();
+    }
+  });
+  castVideo.addEventListener('loadedmetadata', updateMediaSeekUi);
+  castVideo.addEventListener('timeupdate', updateMediaSeekUi);
+  castVideo.addEventListener('ended', () => {
+    if (!castVideo.loop) {
+      clearInterval(mediaFrameTimer);
+      mediaFrameTimer = null;
+      flushPcmBatch();
+      syncMediaStatusText();
+    }
+  });
+  mediaZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    mediaZone.classList.add('drag-over');
+  });
+  mediaZone.addEventListener('dragleave', () => mediaZone.classList.remove('drag-over'));
+  mediaZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    mediaZone.classList.remove('drag-over');
+    const dropped = e.dataTransfer?.files?.[0];
+    if (dropped) void loadLocalMedia(dropped, true);
   });
 
   dropZone.addEventListener('dragover', (e) => {
@@ -977,7 +1525,7 @@
       if (document.visibilityState === 'visible') {
         void refreshHealth();
       }
-    }, 600);
+    }, 1000);
   };
 
   document.addEventListener('visibilitychange', () => {

@@ -21,7 +21,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 PACKAGE_NAME = "cp0-screen-cast"
-PACKAGE_VERSION = "0.1.0"
+PACKAGE_VERSION = "0.2.0"
 PACKAGE_ARCH = "arm64"
 ICON_BASENAME = "cp0-screen-cast"
 FIXED_MTIME = 1764060000
@@ -335,11 +335,11 @@ def build_deb_package(output_dir: Path | None = None, regenerate_icons: bool = F
         f"Architecture: {PACKAGE_ARCH}\n"
         f"Installed-Size: {installed_kb}\n"
         f"Depends: python3 (>= 3.11), python3-pil\n"
-        f"Recommends: python3-evdev, fonts-noto-cjk\n"
+        f"Recommends: python3-numpy, python3-evdev, fonts-noto-cjk, alsa-utils, ffmpeg\n"
         f"Maintainer: patdelphi <patdelphi@outlook.com>\n"
-        f"Description: CardputerZero 320x170 Web Console and Screen Cast Tester\n"
-        f" Runs on CardputerZero to serve an HTTP web console (:8787) and display\n"
-        f" pushed images, raw RGB565 frames, and 10 UI/photo/calibration samples.\n"
+        f"Description: CardputerZero 320x170 Web Console and Audio/Video Screen Cast\n"
+        f" Runs on CardputerZero to serve an HTTP web console (:8787), stream\n"
+        f" synchronized video+audio (/stream, /play, /audio), and display test patterns.\n"
     ).encode("utf-8")
 
     conffiles_text = b"/etc/cp0-screen-cast.conf\n"
