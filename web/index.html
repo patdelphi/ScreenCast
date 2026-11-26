@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<!-- 程序说明：CardputerZero 320×170 网页控台与无线投屏画面测试主页面（50/50 对称双栏 + 中英切换） -->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>CardputerZero 投屏与画面测试控台</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="top-bar">
+      <div class="title-block">
+        <h1 data-i18n="h1_title">CardputerZero 画面测试与投屏控台</h1>
+        <p class="subtitle">1.9" IPS · 320×170 · 16-bit RGB565 · POST /push</p>
+      </div>
+      <div class="quick-actions" role="group" aria-label="即时屏幕操作" data-i18n-aria="quick_actions_aria">
+        <span id="service-badge" class="badge">连接中...</span>
+        <button
+          type="button"
+          id="btn-toggle-lang"
+          class="btn secondary lang-toggle"
+          aria-label="切换界面语言 (En/Cn)"
+          data-i18n-aria="lang_toggle_aria"
+        >
+          <span data-lang-pill="en">En</span>
+          <span class="lang-sep" aria-hidden="true">/</span>
+          <span data-lang-pill="zh" class="active">Cn</span>
+        </button>
+        <button type="button" id="btn-prev-pattern" class="btn secondary" data-i18n="btn_prev">◀ 上一张</button>
+        <button type="button" id="btn-next-pattern" class="btn secondary" data-i18n="btn_next">下一张 ▶</button>
+        <button type="button" id="btn-toggle-pause" class="btn secondary">冻结接收</button>
+        <button type="button" id="btn-waiting" class="btn danger" data-i18n="btn_waiting">回待机页</button>
+      </div>
+    </header>
+
+    <div id="global-status" class="status-banner" role="status" aria-live="polite"></div>
+
+    <main class="dashboard-grid">
+      <!-- 左栏（50%）：320×170 RGB565 实时同步预览 + 拖拽/粘贴推图 + 10 类样张矩阵 + 设备遥测 -->
+      <div class="column-stack">
+        <section class="panel preview-card" aria-labelledby="preview-heading">
+          <div class="section-head preview-head">
+            <h2 id="preview-heading" data-i18n="preview_heading">设备屏幕实时预览（320×170 RGB565）</h2>
+            <div class="preview-meta">
+              <span id="meta-mode">状态：--</span>
+              <span id="meta-sha">哈希：--</span>
+              <span id="meta-ms">耗时：--</span>
+              <button type="button" id="btn-pixel-mode" class="btn small secondary" aria-pressed="true">像素锐利</button>
+            </div>
+          </div>
+          <div class="screen-frame">
+            <img
+              id="preview-img"
+              src="/preview.png"
+              width="320"
+              height="170"
+              class="pixelated"
+              alt="CardputerZero 当前 320×170 RGB565 屏幕实时画面预览"
+              data-i18n-alt="preview_alt"
+            >
+          </div>
+        </section>
+
+        <section id="drop-zone" class="panel drop-zone" aria-label="上传、拖拽或剪贴板粘贴图片上屏" data-i18n-aria="drop_zone_aria">
+          <div class="upload-row">
+            <label for="image-file-input" class="file-label" data-i18n="file_label">选图 / 拖拽 / Ctrl+V 贴图</label>
+            <input type="file" id="image-file-input" accept="image/png,image/jpeg,image/bmp,image/webp,image/gif">
+            <button type="button" id="btn-upload-push" class="btn primary small" data-i18n="btn_upload_push">推送上屏</button>
+          </div>
+        </section>
+
+        <section class="panel pattern-card" aria-labelledby="pattern-heading">
+          <div class="sub-header">
+            <h2 id="pattern-heading" data-i18n="pattern_heading">内置屏幕评估样张库（点击即刻上屏）</h2>
+            <span id="pattern-desc" class="hint">选择下方样张检验 UI 排版、色彩与字号</span>
+          </div>
+          <div id="pattern-groups" class="pattern-groups"></div>
+        </section>
+
+        <section class="panel telemetry-card" aria-labelledby="telemetry-heading">
+          <div class="sub-header">
+            <h2 id="telemetry-heading" data-i18n="telemetry_heading">设备硬件与推流状态</h2>
+            <button type="button" id="btn-refresh-status" class="btn small secondary" data-i18n="btn_refresh_status">刷新状态</button>
+          </div>
+          <dl class="telemetry-grid">
+            <div><dt data-i18n="dt_mode">当前模式</dt><dd id="stat-mode">--</dd></div>
+            <div><dt data-i18n="dt_frames">收图 / 刷屏</dt><dd id="stat-frames">0 / 0</dd></div>
+            <div><dt data-i18n="dt_fps">帧率 / 耗时</dt><dd id="stat-fps">--</dd></div>
+            <div><dt data-i18n="dt_fb">显存后端</dt><dd id="stat-fb">--</dd></div>
+            <div><dt data-i18n="dt_addr">设备地址</dt><dd id="dev-addr">--</dd></div>
+            <div><dt data-i18n="dt_wifi">Wi-Fi 信号</dt><dd id="dev-wifi">--</dd></div>
+            <div><dt data-i18n="dt_bat">电池状态</dt><dd id="dev-bat">--</dd></div>
+            <div><dt data-i18n="dt_sys">温度 / 内存</dt><dd id="dev-sys">--</dd></div>
+          </dl>
+          <p id="last-error-text" class="error-banner" hidden></p>
+        </section>
+      </div>
+
+      <!-- 右栏（50%）：色彩与画面实时调参表单 + 局域网跨设备推送代码 -->
+      <div class="column-stack">
+        <section class="panel config-card" aria-labelledby="config-heading">
+          <div class="section-head preview-head">
+            <h2 id="config-heading" data-i18n="config_heading">显示效果实时调参与持久化（.env）</h2>
+            <button type="button" id="btn-reset-tone" class="btn small secondary" data-i18n="btn_reset_tone">重置画质 100%</button>
+          </div>
+
+          <form id="config-form" method="POST" action="/api/config" aria-labelledby="config-heading" novalidate>
+            <fieldset>
+              <legend data-i18n="legend_fps">推流帧率控制（视频播放 / 游戏推流）</legend>
+              <div class="fps-control-row">
+                <div class="fps-presets" role="group" aria-label="常用帧率档位" data-i18n-aria="fps_presets_aria">
+                  <button type="button" class="fps-chip active" data-fps="0" aria-pressed="true" data-i18n="fps_unlimited">不限速 MAX</button>
+                  <button type="button" class="fps-chip" data-fps="15" aria-pressed="false">15 FPS</button>
+                  <button type="button" class="fps-chip" data-fps="24" aria-pressed="false">24 FPS</button>
+                  <button type="button" class="fps-chip" data-fps="30" aria-pressed="false">30 FPS</button>
+                  <button type="button" class="fps-chip" data-fps="60" aria-pressed="false">60 FPS</button>
+                </div>
+                <div class="field field-compact fps-custom-field">
+                  <div class="field-head">
+                    <label for="TARGET_FPS"><span data-i18n="lbl_target_fps">固定上限</span> <span aria-hidden="true">*</span></label>
+                    <span id="TARGET_FPS-hint" class="hint" data-i18n="hint_target_fps">0=不限 (0–120)</span>
+                  </div>
+                  <input
+                    type="text"
+                    inputmode="numeric"
+                    id="TARGET_FPS"
+                    name="TARGET_FPS"
+                    value="0"
+                    required
+                    pattern="\d{1,3}"
+                    aria-describedby="TARGET_FPS-hint"
+                    data-error="TARGET_FPS-error"
+                  >
+                  <div id="TARGET_FPS-error" class="error-msg">
+                    <span role="img" aria-label="错误" data-i18n-aria="err_icon_aria">❌</span> <span data-i18n="err_target_fps">请输入 0–120 之间的整数（0 为不限速）。</span>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend data-i18n="legend_color">色彩量化与尺寸适配（切换即时生效）</legend>
+
+              <div class="radio-group" role="radiogroup" aria-labelledby="color-mode-label">
+                <span id="color-mode-label" class="group-title" data-i18n="lbl_color_mode">色彩渲染模式（COLOR_MODE）</span>
+                <div class="radio-row">
+                  <label class="radio-item" for="cm-rgb565">
+                    <input type="radio" id="cm-rgb565" name="COLOR_MODE" value="rgb565">
+                    <span data-i18n="cm_rgb565">RGB565 原生彩屏</span>
+                  </label>
+                  <label class="radio-item" for="cm-dither">
+                    <input type="radio" id="cm-dither" name="COLOR_MODE" value="rgb565_dither">
+                    <span data-i18n="cm_dither">RGB565 抖动防色带</span>
+                  </label>
+                  <label class="radio-item" for="cm-gray">
+                    <input type="radio" id="cm-gray" name="COLOR_MODE" value="gray">
+                    <span data-i18n="cm_gray">8-bit 灰度</span>
+                  </label>
+                  <label class="radio-item" for="cm-floyd">
+                    <input type="radio" id="cm-floyd" name="COLOR_MODE" value="mono_floyd">
+                    <span data-i18n="cm_floyd">黑白 Floyd</span>
+                  </label>
+                  <label class="radio-item" for="cm-thresh">
+                    <input type="radio" id="cm-thresh" name="COLOR_MODE" value="mono_threshold">
+                    <span data-i18n="cm_thresh">黑白硬阈值</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="two-col">
+                <div class="radio-group" role="radiogroup" aria-labelledby="fit-group-label">
+                  <span id="fit-group-label" class="group-title" data-i18n="lbl_fit_mode">缩放策略（FIT_MODE）</span>
+                  <div class="radio-row">
+                    <label class="radio-item" for="fit-contain">
+                      <input type="radio" id="fit-contain" name="FIT_MODE" value="contain">
+                      <span data-i18n="fit_contain">Contain 留边</span>
+                    </label>
+                    <label class="radio-item" for="fit-cover">
+                      <input type="radio" id="fit-cover" name="FIT_MODE" value="cover">
+                      <span data-i18n="fit_cover">Cover 铺满</span>
+                    </label>
+                    <label class="radio-item" for="fit-stretch">
+                      <input type="radio" id="fit-stretch" name="FIT_MODE" value="stretch">
+                      <span data-i18n="fit_stretch">Stretch 拉伸</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="radio-group" role="radiogroup" aria-labelledby="rotate-group-label">
+                  <span id="rotate-group-label" class="group-title" data-i18n="lbl_rotate">顺时针旋转（ROTATE）</span>
+                  <div class="radio-row">
+                    <label class="radio-item" for="rot-0">
+                      <input type="radio" id="rot-0" name="ROTATE" value="0">
+                      <span>0°</span>
+                    </label>
+                    <label class="radio-item" for="rot-90">
+                      <input type="radio" id="rot-90" name="ROTATE" value="90">
+                      <span>90°</span>
+                    </label>
+                    <label class="radio-item" for="rot-180">
+                      <input type="radio" id="rot-180" name="ROTATE" value="180">
+                      <span>180°</span>
+                    </label>
+                    <label class="radio-item" for="rot-270">
+                      <input type="radio" id="rot-270" name="ROTATE" value="270">
+                      <span>270°</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend data-i18n="legend_tone">亮度、对比度、饱和度与叠加项</legend>
+
+              <div class="two-col-equal">
+                <div class="field field-compact">
+                  <div class="field-head">
+                    <label for="BRIGHTNESS" data-i18n="lbl_brightness">亮度（20–200%）</label>
+                    <span id="BRIGHTNESS-hint" class="hint"><strong id="brightness-val">100</strong>%</span>
+                  </div>
+                  <input type="range" id="BRIGHTNESS" name="BRIGHTNESS" min="20" max="200" value="100" aria-describedby="BRIGHTNESS-hint">
+                </div>
+
+                <div class="field field-compact">
+                  <div class="field-head">
+                    <label for="CONTRAST" data-i18n="lbl_contrast">对比度（20–200%）</label>
+                    <span id="CONTRAST-hint" class="hint"><strong id="contrast-val">100</strong>%</span>
+                  </div>
+                  <input type="range" id="CONTRAST" name="CONTRAST" min="20" max="200" value="100" aria-describedby="CONTRAST-hint">
+                </div>
+              </div>
+
+              <div class="two-col-equal">
+                <div class="field field-compact">
+                  <div class="field-head">
+                    <label for="SATURATION" data-i18n="lbl_saturation">饱和度（0–200%）</label>
+                    <span id="SATURATION-hint" class="hint"><strong id="saturation-val">100</strong>%</span>
+                  </div>
+                  <input type="range" id="SATURATION" name="SATURATION" min="0" max="200" value="100" aria-describedby="SATURATION-hint">
+                </div>
+
+                <div class="field field-compact">
+                  <div class="field-head">
+                    <label for="THRESHOLD" data-i18n="lbl_threshold">黑白阈值（0–255）</label>
+                    <span id="THRESHOLD-hint" class="hint"><strong id="threshold-val">128</strong></span>
+                  </div>
+                  <input type="range" id="THRESHOLD" name="THRESHOLD" min="0" max="255" value="128" aria-describedby="THRESHOLD-hint">
+                </div>
+              </div>
+
+              <div class="checkbox-row">
+                <label class="check-item" for="INVERT">
+                  <input type="checkbox" id="INVERT" name="INVERT">
+                  <span data-i18n="lbl_invert">反相画面颜色（INVERT）</span>
+                </label>
+                <label class="check-item" for="SHOW_OVERLAY">
+                  <input type="checkbox" id="SHOW_OVERLAY" name="SHOW_OVERLAY">
+                  <span data-i18n="lbl_overlay">设备右上角显示模式角标（7键）</span>
+                </label>
+                <div class="bg-color-inline">
+                  <label for="BG_COLOR" data-i18n="lbl_bg_color">留边色</label>
+                  <input type="color" id="BG_COLOR" name="BG_COLOR" value="#000000">
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend data-i18n="legend_net">服务端口、自动回退与鉴权</legend>
+
+              <div class="three-col-ip">
+                <div class="field">
+                  <div class="field-head">
+                    <label for="LISTEN_HOST"><span data-i18n="lbl_listen_host">绑定地址</span> <span aria-hidden="true">*</span></label>
+                    <span id="LISTEN_HOST-hint" class="hint" data-i18n="hint_listen_host">默认 0.0.0.0</span>
+                  </div>
+                  <input
+                    type="text"
+                    id="LISTEN_HOST"
+                    name="LISTEN_HOST"
+                    required
+                    pattern="[A-Za-z0-9.\-:]+"
+                    autocorrect="off"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    aria-describedby="LISTEN_HOST-hint"
+                    data-error="LISTEN_HOST-error"
+                  >
+                  <div id="LISTEN_HOST-error" class="error-msg">
+                    <span role="img" aria-label="错误" data-i18n-aria="err_icon_aria">❌</span> <span data-i18n="err_listen_host">请输入合法监听 IP（如 0.0.0.0）。</span>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <div class="field-head">
+                    <label for="LISTEN_PORT"><span data-i18n="lbl_listen_port">端口</span> <span aria-hidden="true">*</span></label>
+                    <span id="LISTEN_PORT-hint" class="hint">1–65535</span>
+                  </div>
+                  <input
+                    type="text"
+                    inputmode="numeric"
+                    id="LISTEN_PORT"
+                    name="LISTEN_PORT"
+                    required
+                    pattern="\d{1,5}"
+                    aria-describedby="LISTEN_PORT-hint"
+                    data-error="LISTEN_PORT-error"
+                  >
+                  <div id="LISTEN_PORT-error" class="error-msg">
+                    <span role="img" aria-label="错误" data-i18n-aria="err_icon_aria">❌</span> <span data-i18n="err_listen_port">请输入 1–65535 之间的整数端口。</span>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <div class="field-head">
+                    <label for="CAST_TIMEOUT_SEC"><span data-i18n="lbl_timeout">无信号回退(s)</span> <span aria-hidden="true">*</span></label>
+                    <span id="CAST_TIMEOUT_SEC-hint" class="hint" data-i18n="hint_timeout">0常驻不退</span>
+                  </div>
+                  <input
+                    type="text"
+                    inputmode="numeric"
+                    id="CAST_TIMEOUT_SEC"
+                    name="CAST_TIMEOUT_SEC"
+                    required
+                    pattern="\d+"
+                    aria-describedby="CAST_TIMEOUT_SEC-hint"
+                    data-error="CAST_TIMEOUT_SEC-error"
+                  >
+                  <div id="CAST_TIMEOUT_SEC-error" class="error-msg">
+                    <span role="img" aria-label="错误" data-i18n-aria="err_icon_aria">❌</span> <span data-i18n="err_timeout">请输入 0–86400 之间的整数秒数。</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="field-head">
+                  <label for="CAST_TOKEN" data-i18n="lbl_token">推送鉴权 Token（可选）</label>
+                  <span id="CAST_TOKEN-hint" class="hint" data-i18n="hint_token">对应请求头 X-Cast-Token，留空允许局域网免密推送</span>
+                </div>
+                <div class="token-row">
+                  <input
+                    type="password"
+                    id="CAST_TOKEN"
+                    name="CAST_TOKEN"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    aria-describedby="CAST_TOKEN-hint"
+                    data-error="CAST_TOKEN-error"
+                  >
+                  <button
+                    type="button"
+                    id="toggle-token-btn"
+                    class="btn secondary small"
+                    aria-pressed="false"
+                    aria-controls="CAST_TOKEN"
+                  >显示</button>
+                </div>
+                <div id="CAST_TOKEN-error" class="error-msg">
+                  <span role="img" aria-label="错误" data-i18n-aria="err_icon_aria">❌</span> <span data-i18n="err_token">Token 不能包含控制字符。</span>
+                </div>
+              </div>
+            </fieldset>
+
+            <div class="form-actions">
+              <button type="submit" id="btn-save-config" class="btn primary" data-i18n="btn_save_config">保存当前参数到 .env</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel api-card" aria-labelledby="api-heading">
+          <div class="sub-header">
+            <h2 id="api-heading" data-i18n="api_heading">任意设备推送命令示例（HTTP POST）</h2>
+            <button type="button" id="btn-copy-curl" class="btn small secondary" data-i18n="btn_copy_curl">复制示例</button>
+          </div>
+          <pre id="curl-example" class="code-box"></pre>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

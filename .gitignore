@@ -1,0 +1,35 @@
+# 本地运行配置与密钥（保留 .env.example 模板）
+.env
+*.env.local
+cp0-screen-cast.conf
+
+# 构建产物目录与安装包
+dist/
+build/
+*.deb
+
+# Python 缓存与测试临时目录
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# 临时文件、日志与编辑器备份
+tmp/
+temp/
+scratch/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*.log
+
+# 操作系统缩略图与元数据
+.DS_Store
+Thumbs.db
+Desktop.ini
