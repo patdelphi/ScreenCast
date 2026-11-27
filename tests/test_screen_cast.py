@@ -105,6 +105,34 @@ class TestConfigAndPixelPipeline(unittest.TestCase):
             self.assertEqual(cn_err, {})
             self.assertEqual(cn_alias["UI_LANG"], "zh")
 
+            # 验证默认不显示角标 (SHOW_OVERLAY=False) 且默认开启自动旋转 (ROTATE='auto')，保存重载保持一致
+            def_cfg = app_mod.default_config()
+            self.assertFalse(def_cfg["SHOW_OVERLAY"])
+            self.assertEqual(def_cfg["ROTATE"], "auto")
+            app_mod.save_env_config(env_path, def_cfg)
+            reloaded_auto = app_mod.load_env_config(env_path)
+            self.assertEqual(reloaded_auto["ROTATE"], "auto")
+            self.assertFalse(reloaded_auto["SHOW_OVERLAY"])
+
+            # 验证自动旋转与手动旋转互斥：竖屏图 (170x320) 在 auto 下自动顺时针转 90°（左上红块移至右上角），切手动 0° 则保持左上角
+            portrait = Image.new("RGB", (170, 320), (0, 0, 0))
+            portrait.paste((255, 0, 0), (0, 0, 12, 12))
+            raw_auto, _, _ = app_mod.process_image_to_frame(portrait, {**def_cfg, "ROTATE": "auto", "FIT_MODE": "stretch"})
+            img_auto = app_mod.rgb565_bytes_to_image(raw_auto)
+            self.assertEqual(img_auto.getpixel((319, 0)), (255, 0, 0))
+            self.assertEqual(img_auto.getpixel((0, 0)), (0, 0, 0))
+
+            raw_manual0, _, _ = app_mod.process_image_to_frame(portrait, {**def_cfg, "ROTATE": 0, "FIT_MODE": "stretch"})
+            img_manual0 = app_mod.rgb565_bytes_to_image(raw_manual0)
+            self.assertEqual(img_manual0.getpixel((0, 0)), (255, 0, 0))
+            self.assertEqual(img_manual0.getpixel((319, 0)), (0, 0, 0))
+
+            # 横屏图 (320x170) 在 auto 下保持 0° 不旋转
+            landscape = Image.new("RGB", (320, 170), (0, 0, 0))
+            landscape.putpixel((0, 0), (0, 255, 0))
+            raw_land_auto, _, _ = app_mod.process_image_to_frame(landscape, {**def_cfg, "ROTATE": "auto"})
+            self.assertEqual(app_mod.rgb565_bytes_to_image(raw_land_auto).getpixel((0, 0)), (0, 255, 0))
+
     def test_rgb565_little_endian_exact_values_and_roundtrip(self) -> None:
         img = Image.new("RGB", (app_mod.SCREEN_WIDTH, app_mod.SCREEN_HEIGHT), (0, 0, 0))
         img.putpixel((0, 0), (255, 0, 0))    # 纯红 -> 0xF800
@@ -219,6 +247,21 @@ class TestHttpServerEndToEnd(unittest.TestCase):
         self.assertIn("320×170".encode("utf-8"), html)
         self.assertIn(b"btn-toggle-lang", html)
         self.assertIn(b'id="TARGET_FPS"', html)
+        self.assertIn(b'class="panel cast-hub-card"', html)
+        self.assertIn(b'id="image-file-name"', html)
+        self.assertIn(b'id="media-file-name"', html)
+        self.assertIn(b'class="hub-divider"', html)
+
+        css_status, css_type, css_bytes = self._req("/app.css")
+        self.assertEqual(css_status, 200)
+        self.assertIn("text/css", css_type)
+        self.assertIn(b".filename-box", css_bytes)
+        self.assertIn(b"@container configcard", css_bytes)
+
+        js_status, js_type, js_bytes = self._req("/app.js")
+        self.assertEqual(js_status, 200)
+        self.assertIn("javascript", js_type)
+        self.assertIn(b"renderFilenameKeepExt", js_bytes)
 
         status, _, patterns_raw = self._req("/api/patterns?lang=en")
         self.assertEqual(status, 200)
@@ -775,11 +818,43 @@ class TestHttpServerEndToEnd(unittest.TestCase):
                 after_mjpeg_blit = self.runtime.get_health_snapshot()["stats"]["blitted_frames"]
                 self.assertGreaterEqual(after_mjpeg_blit - before_blit, 2)
 
-                # 6. 验证 pc_av_streamer.py CLI 端到端推送 CP0S 自适应混合流
+                # 6. 验证 pc_av_streamer.py CLI 端到端推送 CP0S 自适应混合流（含竖屏 120x240 视频自动 90° 横向旋转）
                 rc_cp0s = streamer_mod.main(
                     [str(mp4_path), "--host", "127.0.0.1", "--port", str(self.port), "--fps", "10", "--no-realtime"]
                 )
                 self.assertEqual(rc_cp0s, 0)
+
+                # 生成左半红、右半蓝的竖屏视频 (120x240)：在默认 ROTATE=auto 下自动顺时针转 90° 后，上半屏应变为红色、下半屏变为蓝色
+                vert_mp4 = Path(tmp_m) / "portrait.mp4"
+                subprocess.run(
+                    [
+                        "ffmpeg", "-y", "-v", "error",
+                        "-f", "lavfi", "-i", "color=c=red:s=60x240:r=10",
+                        "-f", "lavfi", "-i", "color=c=blue:s=60x240:r=10",
+                        "-filter_complex", "[0:v][1:v]hstack=inputs=2[v]",
+                        "-map", "[v]", "-t", "0.2",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                        str(vert_mp4),
+                    ],
+                    check=True,
+                )
+                self._req(
+                    "/api/config",
+                    method="POST",
+                    body=json.dumps({**self.runtime.get_config(), "ROTATE": "auto", "FIT_MODE": "stretch", "save": False}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                )
+                st_vp, _, _ = self._req(
+                    "/play?realtime=0",
+                    method="POST",
+                    body=vert_mp4.read_bytes(),
+                    headers={"Content-Type": "video/mp4"},
+                )
+                self.assertEqual(st_vp, 200)
+                vp_img = app_mod.rgb565_bytes_to_image(self.fb.last_bytes)
+                # 顺时针旋转 90° 后，原左侧红色位于顶部 (160, 20)，原右侧蓝色位于底部 (160, 150)
+                self.assertGreater(vp_img.getpixel((160, 20))[0], 180)
+                self.assertGreater(vp_img.getpixel((160, 150))[2], 180)
                 after_cp0s_blit = self.runtime.get_health_snapshot()["stats"]["blitted_frames"]
                 self.assertGreaterEqual(after_cp0s_blit - after_mjpeg_blit, 2)
 

@@ -156,14 +156,14 @@ CONFIG_SECTIONS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
             ("TARGET_FPS", "推流帧率控制：0 表示不限速全速显示，1-120 表示固定目标帧率上限（视频播放/游戏推流）"),
             ("COLOR_MODE", "色彩渲染模式：rgb565 | rgb565_dither | gray | mono_floyd | mono_threshold"),
             ("FIT_MODE", "缩放策略：contain（等比留边）| cover（等比裁切铺满）| stretch（拉伸铺满）"),
-            ("ROTATE", "顺时针旋转角度：0 | 90 | 180 | 270"),
+            ("ROTATE", "旋转模式（与手动互斥）：auto（竖屏图/视频自动90°横显，横屏0°）| 0 | 90 | 180 | 270"),
             ("BG_COLOR", "contain 留边背景色（#RRGGBB）"),
             ("BRIGHTNESS", "亮度百分比（20-200，100 为原始亮度）"),
             ("CONTRAST", "对比度百分比（20-200，100 为原始对比度）"),
             ("SATURATION", "饱和度百分比（0-200，100 为原始饱和度）"),
             ("THRESHOLD", "mono_threshold 硬二值化阈值（0-255）"),
             ("INVERT", "是否反相画面颜色（true / false）"),
-            ("SHOW_OVERLAY", "是否在设备屏幕右上角叠加模式与帧率角标（true / false）"),
+            ("SHOW_OVERLAY", "默认不显示右上角状态角标（true / false）"),
         ),
     ),
     (
@@ -188,7 +188,7 @@ def default_config() -> dict[str, Any]:
         "TARGET_FPS": 0,
         "COLOR_MODE": "rgb565",
         "FIT_MODE": "contain",
-        "ROTATE": 0,
+        "ROTATE": "auto",
         "BG_COLOR": "#000000",
         "BRIGHTNESS": 100,
         "CONTRAST": 100,
@@ -293,11 +293,15 @@ def validate_and_normalize_config(payload: Mapping[str, Any]) -> tuple[dict[str,
     else:
         cfg["FIT_MODE"] = fit_mode
 
-    rot_val, ok = _parse_int_range(payload.get("ROTATE", cfg["ROTATE"]), 0, 270)
-    if not ok or rot_val not in ROTATE_VALUES:
-        errors["ROTATE"] = "旋转角度需为 0、90、180 或 270"
+    raw_rot = payload.get("ROTATE", cfg["ROTATE"])
+    if not isinstance(raw_rot, bool) and str(raw_rot).strip().lower() == "auto":
+        cfg["ROTATE"] = "auto"
     else:
-        cfg["ROTATE"] = rot_val
+        rot_val, ok = _parse_int_range(raw_rot, 0, 270)
+        if not ok or rot_val not in ROTATE_VALUES:
+            errors["ROTATE"] = "旋转模式需为 auto、0、90、180 或 270"
+        else:
+            cfg["ROTATE"] = rot_val
 
     bg_color = str(payload.get("BG_COLOR", cfg["BG_COLOR"])).strip()
     if not HEX_COLOR_RE.match(bg_color):
@@ -950,10 +954,29 @@ def _splice_overlay_rgb565(raw_bytes: bytes, overlay_text: str) -> bytes:
     return bytes(out)
 
 
-def _is_fast_raw_rotate_or_overlay(config: Mapping[str, Any]) -> bool:
+def resolve_effective_rotate(rot_cfg: Any, src_w: int = SCREEN_WIDTH, src_h: int = SCREEN_HEIGHT) -> int:
+    """
+    解析实际顺时针旋转角度（自动模式与手动角度严格互斥）：
+    - 'auto'：当源画面为竖屏（高度 > 宽度）时自动顺时针旋转 90° 横向适配 320×170 宽屏；横屏/方屏保持 0°；
+    - 0 / 90 / 180 / 270：严格按用户手动指定的固定角度旋转。
+    """
+    if not isinstance(rot_cfg, bool) and str(rot_cfg).strip().lower() == "auto":
+        return 90 if int(src_h) > int(src_w) else 0
+    try:
+        deg = int(str(rot_cfg).strip())
+        return deg if deg in ROTATE_VALUES else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def _is_fast_raw_rotate_or_overlay(
+    config: Mapping[str, Any],
+    src_w: int = SCREEN_WIDTH,
+    src_h: int = SCREEN_HEIGHT,
+) -> bool:
     """判断原始 RGB565 帧是否仅开启了 0°/180° 旋转与/或右上角角标（可走纯字节极速快路）。"""
     return (
-        int(config.get("ROTATE", 0)) in (0, 180)
+        resolve_effective_rotate(config.get("ROTATE", "auto"), src_w, src_h) in (0, 180)
         and str(config.get("COLOR_MODE", "rgb565")).lower() == "rgb565"
         and int(config.get("BRIGHTNESS", 100)) == 100
         and int(config.get("CONTRAST", 100)) == 100
@@ -962,10 +985,14 @@ def _is_fast_raw_rotate_or_overlay(config: Mapping[str, Any]) -> bool:
     )
 
 
-def _needs_raw_frame_pipeline(config: Mapping[str, Any]) -> bool:
+def _needs_raw_frame_pipeline(
+    config: Mapping[str, Any],
+    src_w: int = SCREEN_WIDTH,
+    src_h: int = SCREEN_HEIGHT,
+) -> bool:
     """判断推流帧除右上角角标外是否开启了旋转/非默认色彩/色调后处理管线。"""
     return (
-        int(config.get("ROTATE", 0)) != 0
+        resolve_effective_rotate(config.get("ROTATE", "auto"), src_w, src_h) != 0
         or str(config.get("COLOR_MODE", "rgb565")).lower() != "rgb565"
         or int(config.get("BRIGHTNESS", 100)) != 100
         or int(config.get("CONTRAST", 100)) != 100
@@ -988,7 +1015,7 @@ def process_image_to_frame(
     返回: (rgb565_bytes, preview_png_bytes, sha256_hex)
     """
     working = src_img if src_img.mode == "RGB" else src_img.convert("RGB")
-    rot = int(config.get("ROTATE", 0))
+    rot = resolve_effective_rotate(config.get("ROTATE", "auto"), working.width, working.height)
     if rot == 90:
         working = working.transpose(Image.Transpose.ROTATE_270)
     elif rot == 180:
@@ -2457,8 +2484,9 @@ class ScreenCastRuntime:
                 eff_cfg.update(overrides)
 
         t0 = time.perf_counter()
-        if _is_fast_raw_rotate_or_overlay(eff_cfg):
-            out_bytes = rotate_rgb565_180(raw_bytes) if int(eff_cfg.get("ROTATE", 0)) == 180 else raw_bytes
+        eff_rot = resolve_effective_rotate(eff_cfg.get("ROTATE", "auto"), SCREEN_WIDTH, SCREEN_HEIGHT)
+        if _is_fast_raw_rotate_or_overlay(eff_cfg, SCREEN_WIDTH, SCREEN_HEIGHT):
+            out_bytes = rotate_rgb565_180(raw_bytes) if eff_rot == 180 else raw_bytes
             if eff_cfg.get("SHOW_OVERLAY", False):
                 out_bytes = _splice_overlay_rgb565(out_bytes, self._build_overlay_tag(eff_cfg, mode="casting"))
             sha = "" if fast_stream else hashlib.sha256(out_bytes).hexdigest()
@@ -2539,6 +2567,12 @@ class ScreenCastRuntime:
                 if im.format == "JPEG" and im.size == (SCREEN_WIDTH, SCREEN_HEIGHT):
                     im.draft("RGB", (SCREEN_WIDTH, SCREEN_HEIGHT))
                 im.load()
+                if not fast_stream:
+                    try:
+                        if im.getexif().get(274, 1) != 1:
+                            im = ImageOps.exif_transpose(im)
+                    except Exception:
+                        pass
                 rgb = im if im.mode == "RGB" else im.convert("RGB")
         except Exception as exc:
             with self._lock:
@@ -2588,7 +2622,7 @@ class ScreenCastRuntime:
             rgb.size == (SCREEN_WIDTH, SCREEN_HEIGHT)
             and (
                 (pre_processed and cm in ("rgb565", "rgb565_dither", "gray"))
-                or not _needs_raw_frame_pipeline(eff_cfg)
+                or not _needs_raw_frame_pipeline(eff_cfg, rgb.width, rgb.height)
             )
         )
         if can_direct_565:
@@ -2985,7 +3019,7 @@ class ScreenCastRuntime:
 
         if not pace_stream:
             with self._lock:
-                cur_rot = int(self._config.get("ROTATE", 0))
+                cur_rot = resolve_effective_rotate(self._config.get("ROTATE", "auto"), SCREEN_WIDTH, SCREEN_HEIGHT)
             frame_ov = {"ROTATE": (cur_rot - base_rotate) % 360} if base_rotate else None
             blitted = 0
             for kind, v_bytes in batch_frames:
@@ -3002,7 +3036,7 @@ class ScreenCastRuntime:
 
         with self._lock:
             cfg_fps = int(self._config.get("TARGET_FPS", 0))
-            cur_rot = int(self._config.get("ROTATE", 0))
+            cur_rot = resolve_effective_rotate(self._config.get("ROTATE", "auto"), SCREEN_WIDTH, SCREEN_HEIGHT)
         eff_fps = max(1, min(60, cfg_fps if cfg_fps > 0 else 30))
         interval = 1.0 / float(eff_fps)
 
@@ -3249,15 +3283,20 @@ class ScreenCastRuntime:
 
         with self._lock:
             fit_mode = str(self._config.get("FIT_MODE", "contain"))
-            init_rot = int(self._config.get("ROTATE", 0))
+            raw_init_rot = self._config.get("ROTATE", "auto")
 
         rot_prefix = ""
-        if init_rot == 90:
-            rot_prefix = "transpose=1,"
-        elif init_rot == 180:
-            rot_prefix = "hflip,vflip,"
-        elif init_rot == 270:
-            rot_prefix = "transpose=2,"
+        init_rot = 0
+        if str(raw_init_rot).strip().lower() == "auto":
+            rot_prefix = "transpose=clock:passthrough=landscape,"
+        else:
+            init_rot = resolve_effective_rotate(raw_init_rot, SCREEN_WIDTH, SCREEN_HEIGHT)
+            if init_rot == 90:
+                rot_prefix = "transpose=1,"
+            elif init_rot == 180:
+                rot_prefix = "hflip,vflip,"
+            elif init_rot == 270:
+                rot_prefix = "transpose=2,"
 
         if fit_mode == "stretch":
             scale_expr = f"scale={SCREEN_WIDTH}:{SCREEN_HEIGHT}"
@@ -3709,9 +3748,13 @@ class ScreenCastHttpHandler(BaseHTTPRequestHandler):
                 if "fit_mode" in query and query["fit_mode"][0] in FIT_MODES:
                     overrides["FIT_MODE"] = query["fit_mode"][0]
                 if "rotate" in query:
-                    r_val, rok = _parse_int_range(query["rotate"][0], 0, 270)
-                    if rok and r_val in ROTATE_VALUES:
-                        overrides["ROTATE"] = r_val
+                    q_rot = str(query["rotate"][0]).strip().lower()
+                    if q_rot == "auto":
+                        overrides["ROTATE"] = "auto"
+                    else:
+                        r_val, rok = _parse_int_range(q_rot, 0, 270)
+                        if rok and r_val in ROTATE_VALUES:
+                            overrides["ROTATE"] = r_val
 
                 if ctype.lower().startswith("multipart/form-data"):
                     img_bytes = _extract_multipart_image(ctype, body)

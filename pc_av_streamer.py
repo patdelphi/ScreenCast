@@ -123,7 +123,7 @@ def stream_media_file(
     port: int = 8787,
     fps: int = 24,
     fit: str = "contain",
-    rotate: int = 0,
+    rotate: str | int = "auto",
     audio_rate: int = 24000,
     jpeg_quality: int = 74,
     token: str = "",
@@ -135,7 +135,11 @@ def stream_media_file(
         print("错误：未在 PATH 中找到 ffmpeg，请先安装 ffmpeg。", file=sys.stderr)
         return 1
 
-    rot_prefix = {90: "transpose=1,", 180: "hflip,vflip,", 270: "transpose=2,"}.get(rotate, "")
+    rot_str = str(rotate).strip().lower()
+    if rot_str == "auto":
+        rot_prefix = "transpose=clock:passthrough=landscape,"
+    else:
+        rot_prefix = {"90": "transpose=1,", "180": "hflip,vflip,", "270": "transpose=2,"}.get(rot_str, "")
     if fit == "stretch":
         scale_expr = f"scale={SCREEN_WIDTH}:{SCREEN_HEIGHT}"
     elif fit == "cover":
@@ -305,7 +309,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=8787, help="服务端口（默认 8787）")
     parser.add_argument("--fps", type=int, default=24, help="推送目标帧率（默认 24）")
     parser.add_argument("--fit", choices=("contain", "cover", "stretch"), default="contain", help="画面缩放策略")
-    parser.add_argument("--rotate", type=int, choices=(0, 90, 180, 270), default=0, help="PC 端预旋转角度")
+    parser.add_argument(
+        "--rotate",
+        type=str,
+        choices=("auto", "0", "90", "180", "270"),
+        default="auto",
+        help="旋转模式：auto（默认，竖屏视频自动顺时针90°横显）或手动固定角度 0/90/180/270",
+    )
     parser.add_argument("--quality", type=int, default=74, help="剧烈运动帧 JPEG 质量 (40-95，默认 74)")
     parser.add_argument("--token", type=str, default="", help="可选 X-Cast-Token 鉴权口令")
     parser.add_argument("--no-realtime", action="store_true", help="关闭实时匀速限速（用于基准测速与单元测试）")

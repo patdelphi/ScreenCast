@@ -28,12 +28,18 @@
       mode_waiting: '待机等待页',
       mode_casting: '外部推流画面',
       mode_pattern_prefix: '样张: ',
+      hub_heading: '媒体投送工作台（图片直推 · 音视频串流）',
+      hub_hint: '支持文件拖入对应分块或按 Ctrl+V 粘贴截图',
       drop_zone_aria: '上传、拖拽或剪贴板粘贴图片上屏',
-      file_label: '选图 / 拖拽 / Ctrl+V 贴图',
-      btn_upload_push: '推送上屏',
-      media_heading: '本地音视频文件投播（网页解码音画同传）',
+      img_module_title: '静态图片上屏',
+      img_module_formats: 'PNG / JPG / WebP / GIF / BMP · 竖屏自动 90°',
+      file_label: '选择图片...',
+      img_no_file: '未选图片（可拖拽至此或按 Ctrl+V 粘贴）',
+      btn_upload_push: '立即上屏',
+      media_heading: '本地音视频同步投播',
       media_idle: '选择 MP4/WebM/MP3/WAV 即可播放上屏',
-      media_file_label: '选择音视频',
+      media_file_label: '选择音视频...',
+      vid_no_file: '未选媒体（浏览器本地解码，音画同步推流）',
       btn_media_play: '▶ 播放投屏',
       btn_media_pause: '⏸ 暂停投播',
       btn_media_stop: '⏹ 停止',
@@ -89,7 +95,8 @@
       fit_contain: 'Contain 留边',
       fit_cover: 'Cover 铺满',
       fit_stretch: 'Stretch 拉伸',
-      lbl_rotate: '顺时针旋转（ROTATE）',
+      lbl_rotate: '旋转方向（自动与手动互斥）',
+      rot_auto: '自动(竖屏90°)',
       legend_tone: '亮度、对比度、饱和度与叠加项',
       lbl_brightness: '亮度（20–200%）',
       lbl_contrast: '对比度（20–200%）',
@@ -170,12 +177,18 @@
       mode_waiting: 'Standby Screen',
       mode_casting: 'External Cast',
       mode_pattern_prefix: 'Pattern: ',
+      hub_heading: 'Media Cast Hub (Image Push & A/V Stream)',
+      hub_hint: 'Drag files into either block or press Ctrl+V to paste',
       drop_zone_aria: 'Upload, drag-drop, or paste image to screen',
-      file_label: 'Select / Drop / Ctrl+V Paste',
-      btn_upload_push: 'Push Image',
-      media_heading: 'Local Video & Audio Cast (Browser A/V Sync)',
+      img_module_title: 'Static Image Push',
+      img_module_formats: 'PNG / JPG / WebP / GIF / BMP · Auto 90° Portrait',
+      file_label: 'Pick Image...',
+      img_no_file: 'No image selected (Drop here or press Ctrl+V)',
+      btn_upload_push: 'Push Now',
+      media_heading: 'Local Video & Audio Sync Cast',
       media_idle: 'Pick MP4/WebM/MP3/WAV to cast video & sound',
-      media_file_label: 'Pick Media',
+      media_file_label: 'Pick Media...',
+      vid_no_file: 'No media selected (Decoded locally with A/V sync)',
       btn_media_play: '▶ Play & Cast',
       btn_media_pause: '⏸ Pause Cast',
       btn_media_stop: '⏹ Stop',
@@ -231,7 +244,8 @@
       fit_contain: 'Contain',
       fit_cover: 'Cover',
       fit_stretch: 'Stretch',
-      lbl_rotate: 'Clockwise Rotate (ROTATE)',
+      lbl_rotate: 'Rotation (Auto vs Manual)',
+      rot_auto: 'Auto (90°)',
       legend_tone: 'Brightness, Contrast, Saturation & Overlay',
       lbl_brightness: 'Brightness (20–200%)',
       lbl_contrast: 'Contrast (20–200%)',
@@ -298,6 +312,7 @@
   const togglePauseBtn = document.getElementById('btn-toggle-pause');
   const pixelModeBtn = document.getElementById('btn-pixel-mode');
   const fileInput = document.getElementById('image-file-input');
+  const imageFileNameEl = document.getElementById('image-file-name');
   const dropZone = document.getElementById('drop-zone');
   const patternGroupsEl = document.getElementById('pattern-groups');
   const patternDescEl = document.getElementById('pattern-desc');
@@ -313,6 +328,7 @@
 
   const mediaZone = document.getElementById('media-zone');
   const mediaFileInput = document.getElementById('media-file-input');
+  const mediaFileNameEl = document.getElementById('media-file-name');
   const mediaToggleBtn = document.getElementById('btn-media-toggle');
   const mediaStopBtn = document.getElementById('btn-media-stop');
   const mediaSeek = document.getElementById('media-seek');
@@ -591,6 +607,8 @@
       tag.textContent = grp.label;
       row.append(tag);
 
+      const listWrap = document.createElement('div');
+      listWrap.className = 'pattern-btn-list';
       for (const item of items) {
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -599,8 +617,9 @@
         btn.title = patternDesc(item);
         btn.textContent = patternTitle(item);
         btn.addEventListener('click', () => triggerPattern(item.id));
-        row.append(btn);
+        listWrap.append(btn);
       }
+      row.append(listWrap);
       patternGroupsEl.append(row);
     }
     updatePatternButtonsHighlight();
@@ -615,7 +634,7 @@
       `${t('curl_comment_1')}\n` +
       `curl -X POST "${targetOrigin}/push"${tokFlag} -H "Content-Type: image/png" --data-binary @screen.png\n` +
       `${t('curl_comment_2')}\n` +
-      `ffmpeg -re -i movie.mp4 -vf "fps=24,scale=320:170:force_original_aspect_ratio=decrease,pad=320:170:(ow-iw)/2:(oh-ih)/2" -c:v mjpeg -q:v 7 -ar 24000 -ac 1 -c:a pcm_s16le -flush_packets 1 -avioflags direct -f avi${ffHdr} "${targetOrigin}/stream"\n` +
+      `ffmpeg -re -i movie.mp4 -vf "fps=24,transpose=clock:passthrough=landscape,scale=320:170:force_original_aspect_ratio=decrease,pad=320:170:(ow-iw)/2:(oh-ih)/2" -c:v mjpeg -q:v 7 -ar 24000 -ac 1 -c:a pcm_s16le -flush_packets 1 -avioflags direct -f avi${ffHdr} "${targetOrigin}/stream"\n` +
       `${t('curl_comment_3')}\n` +
       `curl -X POST "${targetOrigin}/play"${tokFlag} --data-binary @clip.mp4\n` +
       `${t('curl_comment_4')}\n` +
@@ -783,12 +802,14 @@
     if (cmRadio) cmRadio.checked = true;
     const fitRadio = form.querySelector(`input[name="FIT_MODE"][value="${cfg.FIT_MODE}"]`);
     if (fitRadio) fitRadio.checked = true;
-    const rotRadio = form.querySelector(`input[name="ROTATE"][value="${cfg.ROTATE}"]`);
+    const rotVal = String(cfg.ROTATE ?? 'auto');
+    const rotRadio = form.querySelector(`input[name="ROTATE"][value="${rotVal}"]`);
     if (rotRadio) rotRadio.checked = true;
   };
 
   const collectConfigPayload = (saveToDisk = true) => {
     const fd = new FormData(form);
+    const rawRot = String(fd.get('ROTATE') ?? 'auto').trim().toLowerCase();
     return {
       save: saveToDisk,
       UI_LANG: currentLang,
@@ -799,7 +820,7 @@
       CAST_TOKEN: String(fd.get('CAST_TOKEN') || ''),
       COLOR_MODE: String(fd.get('COLOR_MODE') || 'rgb565'),
       FIT_MODE: String(fd.get('FIT_MODE') || 'contain'),
-      ROTATE: Number(fd.get('ROTATE') || 0),
+      ROTATE: rawRot === 'auto' ? 'auto' : Number(rawRot || 0),
       BG_COLOR: String(document.getElementById('BG_COLOR').value || '#000000'),
       BRIGHTNESS: Number(sliders.BRIGHTNESS.value),
       CONTRAST: Number(sliders.CONTRAST.value),
@@ -895,6 +916,33 @@
     const tp = (file.type || '').toLowerCase();
     if (tp.startsWith('video/') || tp.startsWith('audio/')) return true;
     return /\.(mp4|webm|mov|mkv|avi|mp3|wav|ogg|m4a|flac)$/i.test(file.name || '');
+  };
+
+  let currentImageName = '';
+  let lastImageFile = null;
+  const renderFilenameKeepExt = (boxEl, rawName, placeholderKey) => {
+    if (!boxEl) return;
+    boxEl.textContent = '';
+    if (!rawName) {
+      boxEl.dataset.empty = 'true';
+      const ph = document.createElement('span');
+      ph.className = 'fname-placeholder';
+      ph.dataset.i18n = placeholderKey;
+      ph.textContent = t(placeholderKey);
+      boxEl.append(ph);
+      return;
+    }
+    boxEl.dataset.empty = 'false';
+    const dotIdx = rawName.lastIndexOf('.');
+    const stem = dotIdx > 0 ? rawName.slice(0, dotIdx) : rawName;
+    const ext = dotIdx > 0 ? rawName.slice(dotIdx) : '';
+    const stemSpan = document.createElement('span');
+    stemSpan.className = 'fname-stem';
+    stemSpan.textContent = stem;
+    boxEl.append(stemSpan);
+    if (ext) {
+      boxEl.append(document.createTextNode(ext));
+    }
   };
 
   /* -----------------------------------------------------------------------
@@ -1070,7 +1118,8 @@
     const fitRadio = form.querySelector('input[name="FIT_MODE"]:checked');
     const fitMode = fitRadio ? fitRadio.value : 'contain';
     const rotRadio = form.querySelector('input[name="ROTATE"]:checked');
-    const rotDeg = rotRadio ? Number(rotRadio.value) || 0 : 0;
+    const rotRaw = rotRadio ? rotRadio.value : 'auto';
+    const rotDeg = rotRaw === 'auto' ? (vh > vw ? 90 : 0) : (Number(rotRaw) || 0);
     const isQuarterTurn = rotDeg === 90 || rotDeg === 270;
     const effW = isQuarterTurn ? vh : vw;
     const effH = isQuarterTurn ? vw : vh;
@@ -1196,6 +1245,7 @@
     if (mediaObjectUrl) URL.revokeObjectURL(mediaObjectUrl);
     mediaObjectUrl = URL.createObjectURL(file);
     currentMediaName = file.name || 'media';
+    renderFilenameKeepExt(mediaFileNameEl, currentMediaName, 'vid_no_file');
     castVideo.src = mediaObjectUrl;
     castVideo.loop = mediaLoopCheck.checked;
     mediaToggleBtn.disabled = false;
@@ -1216,6 +1266,9 @@
       await loadLocalMedia(file, true);
       return;
     }
+    lastImageFile = file;
+    currentImageName = file.name || 'clipboard.png';
+    renderFilenameKeepExt(imageFileNameEl, currentImageName, 'img_no_file');
     stopMediaCast(false);
     try {
       const fd = new FormData();
@@ -1417,7 +1470,9 @@
     void runControl('waiting');
   });
   document.getElementById('btn-refresh-status').addEventListener('click', refreshHealth);
-  document.getElementById('btn-upload-push').addEventListener('click', () => uploadFile(fileInput.files?.[0]));
+  document.getElementById('btn-upload-push').addEventListener('click', () =>
+    uploadFile(fileInput.files?.[0] || lastImageFile)
+  );
   fileInput.addEventListener('change', () => {
     if (fileInput.files?.[0]) void uploadFile(fileInput.files[0]);
   });

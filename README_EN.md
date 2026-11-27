@@ -128,7 +128,7 @@ Open `http://<device-ip>:8787` to access the 50/50 dual-column Web Console:
 | `TARGET_FPS` | `0` | **Stream FPS Cap**: `0` = unlimited full speed; `1–120` = fixed target frame rate for video playback & game casting |
 | `COLOR_MODE` | `rgb565` | `rgb565` (native 16-bit), `rgb565_dither` (8×8 Bayer ordered dither against gradient banding), `gray`, `mono_floyd`, `mono_threshold` |
 | `FIT_MODE` | `contain` | Aspect handling for non-`320×170` images: `contain` (letterbox), `cover` (crop to fill), `stretch` |
-| `ROTATE` | `0` | Clockwise rotation: `0`, `90`, `180`, `270` |
+| `ROTATE` | `auto` | Rotation mode (mutually exclusive): `auto` (portrait images/videos auto-rotate `90°` CW, landscape stays `0°`) or manual `0`, `90`, `180`, `270` |
 | `BG_COLOR` | `#000000` | Letterbox pad color in `contain` mode (`#RRGGBB`) |
 | `BRIGHTNESS` | `100` | Brightness percentage (`20–200`) |
 | `CONTRAST` | `100` | Contrast percentage (`20–200`) |
@@ -265,7 +265,7 @@ For minimal device CPU usage and maximum frame rates, clients can send pre-packe
 ```bash
 # Option A1 (Recommended One-Liner): PC scales & encodes compact MJPEG (-c:v mjpeg -q:v 7) — ~260 KB/s @ 24fps (90% less Wi-Fi traffic!)
 ffmpeg -re -i "movie.mp4" \
-  -vf "fps=24,scale=320:170:force_original_aspect_ratio=decrease,pad=320:170:(ow-iw)/2:(oh-ih)/2" \
+  -vf "fps=24,transpose=clock:passthrough=landscape,scale=320:170:force_original_aspect_ratio=decrease,pad=320:170:(ow-iw)/2:(oh-ih)/2" \
   -c:v mjpeg -q:v 7 \
   -ar 24000 -ac 1 -c:a pcm_s16le \
   -flush_packets 1 -avioflags direct \
@@ -489,7 +489,49 @@ When `CAST_TOKEN` is non-empty in `.env`, all `POST` endpoints (except `/api/con
 
 ---
 
-## 7. Automated Tests & Validation
+## 7. Performance Profiling & Optimization Algorithms
+
+CardputerZero runs on a Raspberry Pi CM0 (`aarch64` Cortex-A53, `353 MB` usable RAM, single-antenna `2.4GHz` SDIO Wi-Fi, SPI `320×170` ST7789v3 LCD). Sustaining smooth `24–30+ FPS` synchronized audio/video with low CPU overhead relies on four targeted optimization layers across transport, compression, pixel packing, and diagnostics.
+
+### 7.1 Real-Device Bottleneck Benchmarks (24 FPS Movie Footage)
+
+| Transport & Codec | Avg Frame Size | 24 FPS Bandwidth | On-Device Frame Time (`proc_avg`) | Bottleneck & Best Fit |
+| --- | --- | --- | --- | --- |
+| `rawvideo` (`rgb565le`) | `106.2 KB` | `2,550 KB/s` (`20.4 Mbps`) | `< 1.0 ms` | Saturates single-antenna 2.4GHz Wi-Fi; air retries trigger `200–400 ms` TCP head-of-line stalls |
+| `RGB565 + deflate(1)` lossless | `60.9 KB` | `1,461 KB/s` (`11.7 Mbps`) | `~1.8 ms` | Camera sensor grain defeats `LZ77` dictionary compression on movies; ideal for crisp UI / terminal screens |
+| **PC Temporal-Denoised `XOR-Delta + zlib(1)`** (`CP0S 0x02`) | `3–12 KB` (calm/dialogue)<br>`32.1 KB` (handheld motion) | `72–300 KB/s` (typical shots) | **`~1.5 ms`** (C `zlib` + big-int XOR, zero color conversion) | PC noise gate zeroes static background diffs; lowest device CPU cost |
+| **PC Pre-Scaled `320×170 MJPEG` (`-q:v 7`) + NEON Pack** | **`9–13.1 KB`** | **`60–210 KB/s`** (measured movie avg) | **`5.04 – 5.95 ms`** | Cuts Wi-Fi traffic by **90%–95%**; resilient under Wi-Fi signal fluctuations |
+
+### 7.2 Offloading Compute to PC & Browser
+
+1. **`CP0S` Temporal Noise Gate + Hybrid XOR-Delta / JPEG (`pc_av_streamer.py`)**
+   - **Temporal Noise Gate**: Computes per-pixel difference `ImageChops.difference(cur, prev)` on the PC and reuses the previous pixel wherever sensor grain is `<= 6`, making static background regions bit-identical after `RGB565` quantization.
+   - **Big-Int Single-Pass XOR**: Converts the `108,800`-byte `RGB565` frame into a Python C big integer to compute `cur_int ^ prev_int` in one C pass, producing long zero runs compressed via `zlib(level=1)` (`0x02`). The device restores the framebuffer via `zlib` + one integer XOR without running JPEG decode or `RGB888 -> RGB565` conversion.
+   - **Scene-Cut Fallback**: Automatically switches to compact `320×170` `JPEG` (`0x03`) when delta size exceeds `15 KB`, and inserts a fresh `0x01` keyframe once changed pixels drop below `16%`.
+2. **Browser GPU Preprocessing & 3-Way In-Flight Pipelining (`web/app.js`)**
+   - Combines portrait auto-`90°` detection (`videoHeight > videoWidth`), aspect scaling, and brightness/contrast/saturation/grayscale/invert into a single Canvas 2D GPU `ctx.filter` pass, followed by asynchronous C++ `castCanvas.toBlob('image/jpeg', 0.76)`.
+   - Maintains a 3-deep concurrent request window (`MAX_VIDEO_INFLIGHT = 3`) with `X-Stream-Session` and `X-Frame-Seq` headers so out-of-order Wi-Fi retransmissions are dropped before decoding, while displaying `#cast-canvas` locally to eliminate reverse `/preview.png` polling traffic.
+
+### 7.3 Cortex-A53 Pixel Pipeline & Lock-Free Fast Paths (`cp0_cast_app.py`)
+
+1. **Native Pillow `RGBX` Export + `16-bit NEON` Vector Shifts (`4.52×` Faster on CM0)**
+   - Pillow stores `"RGB"` images internally as 4-byte aligned `32-bit RGBX` (`image32`). Splitting into 3 channels and applying LUTs took **`10.72 ms`** per frame on the Cortex-A53 (`81%` of total frame time).
+   - Exporting `img.tobytes("raw", "RGBX")` directly as a `(N, 2)` little-endian `uint16` `numpy` view `(rg, bx)` and computing `(((rg & 0x00F8) << 8) | ((rg & 0xFC00) >> 5) | ((bx & 0x00F8) >> 3))` keeps all operations in 16-bit ARM64 NEON SIMD registers, cutting packing time to **`2.37 ms`** and bringing end-to-end `MJPEG` frame processing (`libjpeg-turbo` `2.49 ms` + pack `2.37 ms` + `mmap` blit) down to **`5.04 – 5.95 ms`**.
+2. **Cached HUD Patch & Direct `RGB565` Row Splicing**
+   - Pre-renders and caches the small top-right HUD tag (`~64×16` px) along with its `RGB565` bytes (16-entry LRU) and splices those 16 rows directly into the `108,800`-byte buffer in `~0.03 ms`.
+3. **Zero-Unpack `180°` Flip & `65536`-Entry PCM Volume LUT**
+   - `180°` rotation reverses `54,400` `uint16` pixels in place via C `array('H').reverse()` (`< 0.15 ms`); `0–150%` digital audio gain uses a cached `65536`-entry `uint16` saturating lookup table.
+4. **Lock-Free Decoding & Token-Bucket Micro-Pacing**
+   - Image decoding, color packing, `/dev/fb0` writes, and lazy `/preview.png` encoding run outside `ScreenCastRuntime._lock`.
+   - `_pace_and_blit_stream_batch` uses an 8-frame token bucket to smoothly play multi-frame `32 KB` HTTP `MJPEG` chunks with zero false drops while immediately shedding unthrottled flood frames prior to JPEG decoding; `AudioOutputSink` bounds queue latency and trips a circuit breaker on repeated player failures.
+
+### 7.4 Zero-Wear RAM-Disk Telemetry Logger (`DiagRollingLogger`)
+
+- When `DIAG_LOG` is enabled, hot-path threads only increment integer/float counters in RAM while a background worker writes 1 summary line per second to `tmpfs` `/tmp/cp0-screen-cast.log` (`256 KB × 2` auto-rotation, `<= 512 KB` total RAM, zero SD card writes), exposed remotely via `GET /api/logs?tail=100&format=text`.
+
+---
+
+## 8. Automated Tests & Validation
 
 Run the full test suite and frontend syntax check from the project root:
 

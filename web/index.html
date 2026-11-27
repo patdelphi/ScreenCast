@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- 程序说明：CardputerZero 320×170 网页控台与无线投屏画面测试主页面（50/50 对称双栏 + 中英切换） -->
+<!-- 程序说明：CardputerZero 320×170 网页控台与无线投屏画面测试主页面（50/50 对称双栏 + 模块化分块与双语切换） -->
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
@@ -17,6 +17,7 @@
       </div>
       <div class="quick-actions" role="group" aria-label="即时屏幕操作" data-i18n-aria="quick_actions_aria">
         <span id="service-badge" class="badge">连接中...</span>
+        <span class="v-divider" aria-hidden="true"></span>
         <button
           type="button"
           id="btn-toggle-lang"
@@ -28,8 +29,10 @@
           <span class="lang-sep" aria-hidden="true">/</span>
           <span data-lang-pill="zh" class="active">Cn</span>
         </button>
+        <span class="v-divider" aria-hidden="true"></span>
         <button type="button" id="btn-prev-pattern" class="btn secondary" data-i18n="btn_prev">◀ 上一张</button>
         <button type="button" id="btn-next-pattern" class="btn secondary" data-i18n="btn_next">下一张 ▶</button>
+        <span class="v-divider" aria-hidden="true"></span>
         <button type="button" id="btn-toggle-pause" class="btn secondary">冻结接收</button>
         <button type="button" id="btn-waiting" class="btn danger" data-i18n="btn_waiting">回待机页</button>
       </div>
@@ -38,17 +41,12 @@
     <div id="global-status" class="status-banner" role="status" aria-live="polite"></div>
 
     <main class="dashboard-grid">
-      <!-- 左栏（50%）：320×170 RGB565 实时同步预览 + 拖拽/粘贴推图 + 10 类样张矩阵 + 设备遥测 -->
+      <!-- 左栏（50%）：屏幕实时镜像 + 媒体投送工作台（图片/音视频分块） + 内置样张矩阵 + 硬件遥测 -->
       <div class="column-stack">
         <section class="panel preview-card" aria-labelledby="preview-heading">
-          <div class="section-head preview-head">
+          <div class="panel-head">
             <h2 id="preview-heading" data-i18n="preview_heading">设备屏幕实时预览（320×170 RGB565）</h2>
-            <div class="preview-meta">
-              <span id="meta-mode">状态：--</span>
-              <span id="meta-sha">哈希：--</span>
-              <span id="meta-ms">耗时：--</span>
-              <button type="button" id="btn-pixel-mode" class="btn small secondary" aria-pressed="true">像素锐利</button>
-            </div>
+            <button type="button" id="btn-pixel-mode" class="btn small secondary" aria-pressed="true">像素锐利</button>
           </div>
           <div class="screen-frame">
             <img
@@ -62,56 +60,101 @@
             >
             <canvas id="cast-canvas" width="320" height="170" class="pixelated" hidden></canvas>
           </div>
-        </section>
-
-        <section id="drop-zone" class="panel drop-zone" aria-label="上传、拖拽或剪贴板粘贴图片上屏" data-i18n-aria="drop_zone_aria">
-          <div class="upload-row">
-            <label for="image-file-input" class="file-label" data-i18n="file_label">选图 / 拖拽 / Ctrl+V 贴图</label>
-            <input type="file" id="image-file-input" accept="image/png,image/jpeg,image/bmp,image/webp,image/gif">
-            <button type="button" id="btn-upload-push" class="btn primary small" data-i18n="btn_upload_push">推送上屏</button>
+          <div class="preview-statusbar">
+            <span id="meta-mode" class="meta-pill">状态：--</span>
+            <span class="v-divider" aria-hidden="true"></span>
+            <span id="meta-ms" class="meta-pill">耗时：--</span>
+            <span class="v-divider" aria-hidden="true"></span>
+            <span id="meta-sha" class="meta-pill">哈希：--</span>
           </div>
         </section>
 
-        <section id="media-zone" class="panel media-card" aria-labelledby="media-heading">
-          <div class="sub-header">
-            <h2 id="media-heading" data-i18n="media_heading">本地音视频文件投播（网页解码音画同传）</h2>
-            <span id="media-state-tag" class="hint" data-i18n="media_idle">选择 MP4/WebM/MP3/WAV 即可播放上屏</span>
+        <section class="panel cast-hub-card" aria-labelledby="hub-heading">
+          <div class="panel-head">
+            <h2 id="hub-heading" data-i18n="hub_heading">媒体投送工作台（图片直推 · 音视频串流）</h2>
+            <span class="hint" data-i18n="hub_hint">支持文件拖入对应分块或按 Ctrl+V 粘贴截图</span>
           </div>
-          <div class="upload-row media-file-row">
-            <label for="media-file-input" class="file-label" data-i18n="media_file_label">选择音视频</label>
-            <input type="file" id="media-file-input" accept="video/*,audio/*,.mp4,.webm,.mov,.mkv,.mp3,.wav,.ogg">
-            <button type="button" id="btn-media-toggle" class="btn primary small" disabled data-i18n="btn_media_play">▶ 播放投屏</button>
-            <button type="button" id="btn-media-stop" class="btn secondary small" disabled data-i18n="btn_media_stop">⏹ 停止</button>
+
+          <!-- 分块一：静态图片直推 -->
+          <div id="drop-zone" class="upload-module image-module" role="region" aria-label="上传、拖拽或剪贴板粘贴图片上屏" data-i18n-aria="drop_zone_aria">
+            <div class="module-head">
+              <div class="module-title-wrap">
+                <span class="kind-badge img-badge">IMG</span>
+                <strong class="module-title" data-i18n="img_module_title">静态图片上屏</strong>
+              </div>
+              <span class="hint" data-i18n="img_module_formats">PNG / JPG / WebP / GIF / BMP · 竖屏自动 90°</span>
+            </div>
+            <div class="picker-toolbar">
+              <div class="picker-trigger-wrap">
+                <input type="file" id="image-file-input" class="visually-hidden" accept="image/png,image/jpeg,image/bmp,image/webp,image/gif">
+                <label for="image-file-input" class="btn secondary small picker-btn" data-i18n="file_label">选择图片...</label>
+              </div>
+              <div id="image-file-name" class="filename-box" data-empty="true">
+                <span class="fname-placeholder" data-i18n="img_no_file">未选图片（可拖拽至此或按 Ctrl+V 粘贴）</span>
+              </div>
+              <button type="button" id="btn-upload-push" class="btn primary small" data-i18n="btn_upload_push">立即上屏</button>
+            </div>
           </div>
-          <div class="media-seek-row">
-            <label for="media-seek" class="visually-hidden" data-i18n="lbl_media_seek">媒体播放进度</label>
-            <input
-              type="range"
-              id="media-seek"
-              min="0"
-              max="1000"
-              step="1"
-              value="0"
-              disabled
-              aria-valuetext="00:00 / 00:00"
-            >
-            <span id="media-time" class="media-time">00:00 / 00:00</span>
+
+          <div class="hub-divider" role="separator" aria-hidden="true"></div>
+
+          <!-- 分块二：本地音视频同步投播 -->
+          <div id="media-zone" class="upload-module media-card" role="region" aria-labelledby="media-heading">
+            <div class="module-head">
+              <div class="module-title-wrap">
+                <span class="kind-badge av-badge">A/V</span>
+                <strong id="media-heading" class="module-title" data-i18n="media_heading">本地音视频同步投播</strong>
+              </div>
+              <span id="media-state-tag" class="status-tag" data-i18n="media_idle">选择 MP4/WebM/MP3/WAV 即可播放上屏</span>
+            </div>
+
+            <div class="picker-toolbar">
+              <div class="picker-trigger-wrap">
+                <input type="file" id="media-file-input" class="visually-hidden" accept="video/*,audio/*,.mp4,.webm,.mov,.mkv,.mp3,.wav,.ogg">
+                <label for="media-file-input" class="btn secondary small picker-btn" data-i18n="media_file_label">选择音视频...</label>
+              </div>
+              <div id="media-file-name" class="filename-box" data-empty="true">
+                <span class="fname-placeholder" data-i18n="vid_no_file">未选媒体（浏览器本地解码，音画同步推流）</span>
+              </div>
+              <div class="transport-btn-group">
+                <button type="button" id="btn-media-toggle" class="btn primary small" disabled data-i18n="btn_media_play">▶ 播放投屏</button>
+                <button type="button" id="btn-media-stop" class="btn secondary small" disabled data-i18n="btn_media_stop">⏹ 停止</button>
+              </div>
+            </div>
+
+            <div class="media-transport-bar">
+              <div class="media-seek-wrap">
+                <label for="media-seek" class="visually-hidden" data-i18n="lbl_media_seek">媒体播放进度</label>
+                <input
+                  type="range"
+                  id="media-seek"
+                  min="0"
+                  max="1000"
+                  step="1"
+                  value="0"
+                  disabled
+                  aria-valuetext="00:00 / 00:00"
+                >
+                <span id="media-time" class="media-time">00:00 / 00:00</span>
+              </div>
+              <span class="v-divider" aria-hidden="true"></span>
+              <div class="media-opts-wrap">
+                <label class="check-item compact-chip" for="media-loop">
+                  <input type="checkbox" id="media-loop">
+                  <span data-i18n="lbl_media_loop">循环播放</span>
+                </label>
+                <label class="check-item compact-chip" for="media-local-audio">
+                  <input type="checkbox" id="media-local-audio">
+                  <span data-i18n="lbl_local_audio">浏览器同时发声</span>
+                </label>
+              </div>
+            </div>
+            <video id="cast-video" preload="metadata" playsinline hidden></video>
           </div>
-          <div class="checkbox-row media-opts-row">
-            <label class="check-item" for="media-loop">
-              <input type="checkbox" id="media-loop">
-              <span data-i18n="lbl_media_loop">循环播放</span>
-            </label>
-            <label class="check-item" for="media-local-audio">
-              <input type="checkbox" id="media-local-audio">
-              <span data-i18n="lbl_local_audio">浏览器同时发声</span>
-            </label>
-          </div>
-          <video id="cast-video" preload="metadata" playsinline hidden></video>
         </section>
 
         <section class="panel pattern-card" aria-labelledby="pattern-heading">
-          <div class="sub-header">
+          <div class="panel-head">
             <h2 id="pattern-heading" data-i18n="pattern_heading">内置屏幕评估样张库（点击即刻上屏）</h2>
             <span id="pattern-desc" class="hint">选择下方样张检验 UI 排版、色彩与字号</span>
           </div>
@@ -119,34 +162,34 @@
         </section>
 
         <section class="panel telemetry-card" aria-labelledby="telemetry-heading">
-          <div class="sub-header">
+          <div class="panel-head">
             <h2 id="telemetry-heading" data-i18n="telemetry_heading">设备硬件与推流状态</h2>
             <button type="button" id="btn-refresh-status" class="btn small secondary" data-i18n="btn_refresh_status">刷新状态</button>
           </div>
           <dl class="telemetry-grid">
-            <div><dt data-i18n="dt_mode">当前模式</dt><dd id="stat-mode">--</dd></div>
-            <div><dt data-i18n="dt_frames">收图 / 刷屏</dt><dd id="stat-frames">0 / 0</dd></div>
-            <div><dt data-i18n="dt_fps">帧率 / 耗时</dt><dd id="stat-fps">--</dd></div>
-            <div><dt data-i18n="dt_fb">显存后端</dt><dd id="stat-fb">--</dd></div>
-            <div><dt data-i18n="dt_addr">设备地址</dt><dd id="dev-addr">--</dd></div>
-            <div><dt data-i18n="dt_wifi">Wi-Fi 信号</dt><dd id="dev-wifi">--</dd></div>
-            <div><dt data-i18n="dt_bat">电池状态</dt><dd id="dev-bat">--</dd></div>
-            <div><dt data-i18n="dt_sys">温度 / 内存</dt><dd id="dev-sys">--</dd></div>
+            <div class="telemetry-tile"><dt data-i18n="dt_mode">当前模式</dt><dd id="stat-mode">--</dd></div>
+            <div class="telemetry-tile"><dt data-i18n="dt_frames">收图 / 刷屏</dt><dd id="stat-frames">0 / 0</dd></div>
+            <div class="telemetry-tile"><dt data-i18n="dt_fps">帧率 / 耗时</dt><dd id="stat-fps">--</dd></div>
+            <div class="telemetry-tile"><dt data-i18n="dt_fb">显存后端</dt><dd id="stat-fb">--</dd></div>
+            <div class="telemetry-tile"><dt data-i18n="dt_addr">设备地址</dt><dd id="dev-addr">--</dd></div>
+            <div class="telemetry-tile"><dt data-i18n="dt_wifi">Wi-Fi 信号</dt><dd id="dev-wifi">--</dd></div>
+            <div class="telemetry-tile"><dt data-i18n="dt_bat">电池状态</dt><dd id="dev-bat">--</dd></div>
+            <div class="telemetry-tile"><dt data-i18n="dt_sys">温度 / 内存</dt><dd id="dev-sys">--</dd></div>
           </dl>
           <p id="last-error-text" class="error-banner" hidden></p>
         </section>
       </div>
 
-      <!-- 右栏（50%）：色彩与画面实时调参表单 + 局域网跨设备推送代码 -->
+      <!-- 右栏（50%）：分块实时参数调控表单 + 命令行推送速查 -->
       <div class="column-stack">
         <section class="panel config-card" aria-labelledby="config-heading">
-          <div class="section-head preview-head">
+          <div class="panel-head">
             <h2 id="config-heading" data-i18n="config_heading">显示效果实时调参与持久化（.env）</h2>
             <button type="button" id="btn-reset-tone" class="btn small secondary" data-i18n="btn_reset_tone">重置画质 100%</button>
           </div>
 
           <form id="config-form" method="POST" action="/api/config" aria-labelledby="config-heading" novalidate>
-            <fieldset>
+            <fieldset class="cfg-group">
               <legend data-i18n="legend_fps">推流帧率控制（视频播放 / 游戏推流）</legend>
               <div class="fps-control-row">
                 <div class="fps-presets" role="group" aria-label="常用帧率档位" data-i18n-aria="fps_presets_aria">
@@ -179,7 +222,7 @@
               </div>
             </fieldset>
 
-            <fieldset>
+            <fieldset class="cfg-group">
               <legend data-i18n="legend_audio">设备音频输出控制（全局音量 / 静音）</legend>
               <div class="audio-control-row">
                 <div class="field field-compact audio-vol-field">
@@ -199,15 +242,17 @@
                     aria-valuetext="100%"
                   >
                 </div>
-                <label class="check-item" for="AUDIO_MUTE">
-                  <input type="checkbox" id="AUDIO_MUTE" name="AUDIO_MUTE">
-                  <span data-i18n="lbl_audio_mute">设备静音</span>
-                </label>
-                <span id="audio-backend-tag" class="hint">--</span>
+                <div class="audio-side-controls">
+                  <label class="check-item compact-chip" for="AUDIO_MUTE">
+                    <input type="checkbox" id="AUDIO_MUTE" name="AUDIO_MUTE">
+                    <span data-i18n="lbl_audio_mute">设备静音</span>
+                  </label>
+                  <span id="audio-backend-tag" class="status-tag">--</span>
+                </div>
               </div>
             </fieldset>
 
-            <fieldset>
+            <fieldset class="cfg-group">
               <legend data-i18n="legend_color">色彩量化与尺寸适配（切换即时生效）</legend>
 
               <div class="radio-group" role="radiogroup" aria-labelledby="color-mode-label">
@@ -236,8 +281,10 @@
                 </div>
               </div>
 
-              <div class="two-col">
-                <div class="radio-group" role="radiogroup" aria-labelledby="fit-group-label">
+              <div class="inner-divider" role="separator" aria-hidden="true"></div>
+
+              <div class="fit-rotate-split">
+                <div class="radio-group radio-group-tight" role="radiogroup" aria-labelledby="fit-group-label">
                   <span id="fit-group-label" class="group-title" data-i18n="lbl_fit_mode">缩放策略（FIT_MODE）</span>
                   <div class="radio-row">
                     <label class="radio-item" for="fit-contain">
@@ -255,9 +302,13 @@
                   </div>
                 </div>
 
-                <div class="radio-group" role="radiogroup" aria-labelledby="rotate-group-label">
-                  <span id="rotate-group-label" class="group-title" data-i18n="lbl_rotate">顺时针旋转（ROTATE）</span>
+                <div class="radio-group radio-group-tight rotate-split-col" role="radiogroup" aria-labelledby="rotate-group-label">
+                  <span id="rotate-group-label" class="group-title" data-i18n="lbl_rotate">旋转方向（自动与手动互斥）</span>
                   <div class="radio-row">
+                    <label class="radio-item" for="rot-auto">
+                      <input type="radio" id="rot-auto" name="ROTATE" value="auto" checked>
+                      <span data-i18n="rot_auto">自动(竖屏90°)</span>
+                    </label>
                     <label class="radio-item" for="rot-0">
                       <input type="radio" id="rot-0" name="ROTATE" value="0">
                       <span>0°</span>
@@ -279,10 +330,10 @@
               </div>
             </fieldset>
 
-            <fieldset>
+            <fieldset class="cfg-group">
               <legend data-i18n="legend_tone">亮度、对比度、饱和度与叠加项</legend>
 
-              <div class="two-col-equal">
+              <div class="slider-grid-2x2">
                 <div class="field field-compact">
                   <div class="field-head">
                     <label for="BRIGHTNESS" data-i18n="lbl_brightness">亮度（20–200%）</label>
@@ -298,9 +349,7 @@
                   </div>
                   <input type="range" id="CONTRAST" name="CONTRAST" min="20" max="200" value="100" aria-describedby="CONTRAST-hint">
                 </div>
-              </div>
 
-              <div class="two-col-equal">
                 <div class="field field-compact">
                   <div class="field-head">
                     <label for="SATURATION" data-i18n="lbl_saturation">饱和度（0–200%）</label>
@@ -318,12 +367,14 @@
                 </div>
               </div>
 
-              <div class="checkbox-row">
-                <label class="check-item" for="INVERT">
+              <div class="inner-divider" role="separator" aria-hidden="true"></div>
+
+              <div class="checkbox-row tone-footer-row">
+                <label class="check-item compact-chip" for="INVERT">
                   <input type="checkbox" id="INVERT" name="INVERT">
                   <span data-i18n="lbl_invert">反相画面颜色（INVERT）</span>
                 </label>
-                <label class="check-item" for="SHOW_OVERLAY">
+                <label class="check-item compact-chip" for="SHOW_OVERLAY">
                   <input type="checkbox" id="SHOW_OVERLAY" name="SHOW_OVERLAY">
                   <span data-i18n="lbl_overlay">设备右上角显示模式角标（7键）</span>
                 </label>
@@ -334,7 +385,7 @@
               </div>
             </fieldset>
 
-            <fieldset>
+            <fieldset class="cfg-group">
               <legend data-i18n="legend_net">服务端口、自动回退与鉴权</legend>
 
               <div class="three-col-ip">
@@ -401,7 +452,7 @@
                 </div>
               </div>
 
-              <div class="field">
+              <div class="field field-compact">
                 <div class="field-head">
                   <label for="CAST_TOKEN" data-i18n="lbl_token">推送鉴权 Token（可选）</label>
                   <span id="CAST_TOKEN-hint" class="hint" data-i18n="hint_token">对应请求头 X-Cast-Token，留空允许局域网免密推送</span>
@@ -431,6 +482,8 @@
                 </div>
               </div>
 
+              <div class="inner-divider" role="separator" aria-hidden="true"></div>
+
               <div class="diag-log-row">
                 <div class="diag-check-wrap">
                   <input type="checkbox" id="DIAG_LOG" name="DIAG_LOG">
@@ -450,8 +503,8 @@
         </section>
 
         <section class="panel api-card" aria-labelledby="api-heading">
-          <div class="sub-header">
-            <h2 id="api-heading" data-i18n="api_heading">任意设备推送命令示例（HTTP POST）</h2>
+          <div class="panel-head">
+            <h2 id="api-heading" data-i18n="api_heading">任意设备推送命令示例（图片 / 视频 / 音频）</h2>
             <button type="button" id="btn-copy-curl" class="btn small secondary" data-i18n="btn_copy_curl">复制示例</button>
           </div>
           <pre id="curl-example" class="code-box"></pre>
